@@ -1,0 +1,30 @@
+{
+  "args": {
+    "checkpoint": "model_L8.pt",
+    "d_model": 128,
+    "d_x": 5,
+    "device": "auto",
+    "episodes": 32,
+    "eps": 0.001,
+    "k_remove": null,
+    "k_remove_list": [
+      1,
+      2,
+      4
+    ],
+    "layer_rule": "sweep",
+    "n_causal": 32,
+    "n_ctx": 47,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 16,
+    "probe_kind": "both",
+    "results_dir": "operator_galerkin_experiments/experiment_3_galerkin_surgery/results_L8_final",
+    "rmax": 12,
+    "seed": 42,
+    "sigma2": 0.1,
+    "tau_sv": 0.001
+  },
+  "checkpoint_dir": "/Users/fernandoruizmazo/Documents/GitHub/krr-transformer/checkpoints",
+  "device": "mps"
+}
