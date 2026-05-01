@@ -17,13 +17,14 @@
     "n_tgt": 3,
     "probe_kinds": "isotropic,label",
     "r_max": 9,
-    "results_dir": "/Users/fernandoruizmazo/Documents/GitHub/krr-transformer/operator_galerkin_experiments/experiment_1_operator_galerkin_certificate/results",
+    "response_basis_probe_kind": "label",
+    "results_dir": "experiments/exp1_operator_certificate/results",
     "seed": 123,
     "sigma2": 0.1,
     "skip_shuffled_label_control": false,
     "tau_sv": 0.001
   },
-  "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/krr-transformer/checkpoints/model_L8.pt",
+  "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/model_L8.pt",
   "device": "cpu",
-  "repo_root": "/Users/fernandoruizmazo/Documents/GitHub/krr-transformer"
+  "repo_root": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR"
 }

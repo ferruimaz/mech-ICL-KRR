@@ -1,0 +1,29 @@
+{
+  "args": {
+    "causal_damage_tau": 0.01,
+    "causal_max_keep": 0,
+    "checkpoints": "dx5",
+    "device": "auto",
+    "episodes": 1,
+    "eps": 0.001,
+    "exp": "2b",
+    "gamma": 0.95,
+    "max_candidate_rank": 12,
+    "min_explainable_frac": 0.001,
+    "n_build": 4,
+    "n_causal": 4,
+    "n_ctx": 47,
+    "n_eval": 4,
+    "n_tgt": 16,
+    "n_val": 4,
+    "probe_kind": "task",
+    "rank_tau": 0.01,
+    "results_dir": "experiments/exp2_validated_rank/results_causal_smoke_tau001",
+    "seed": 42,
+    "selection_mode": "causal",
+    "sigma2": 0.1,
+    "tau_subspace": 1e-09,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}

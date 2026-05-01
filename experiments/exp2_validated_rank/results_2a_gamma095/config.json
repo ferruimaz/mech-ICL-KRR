@@ -1,0 +1,25 @@
+{
+  "args": {
+    "checkpoints": "",
+    "device": "auto",
+    "episodes": 4,
+    "eps": 0.001,
+    "exp": "2a",
+    "gamma": 0.95,
+    "max_candidate_rank": 0,
+    "min_explainable_frac": 0.001,
+    "n_build": 8,
+    "n_ctx": 47,
+    "n_eval": 16,
+    "n_tgt": 16,
+    "n_val": 16,
+    "probe_kind": "task",
+    "rank_tau": 0.01,
+    "results_dir": "experiments/exp2_validated_rank/results_2a_gamma095",
+    "seed": 42,
+    "sigma2": 0.1,
+    "tau_subspace": 1e-09,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}

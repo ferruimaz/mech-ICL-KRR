@@ -1,0 +1,29 @@
+{
+  "seed": 20260425,
+  "episodes": 1024,
+  "dx_list": [
+    3,
+    5,
+    8,
+    10,
+    15
+  ],
+  "n_ctx": 47,
+  "n_tgt": 16,
+  "sigma2": 0.1,
+  "eps_list": [
+    0.2,
+    0.1,
+    0.05,
+    0.02,
+    0.01,
+    0.005,
+    0.001
+  ],
+  "target_eps": 0.01,
+  "alpha": 0.05,
+  "sv_tau": 0.001,
+  "target_summary": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/exp2_validated_rank/results_2b_causal_tau005_r16_nbuild16/summary.csv",
+  "arch_summary": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/exp2_validated_rank/results_2a_causal_tau005_r16_nbuild16/summary.csv",
+  "results_dir": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/exp4_apriori_rank/results"
+}

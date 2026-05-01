@@ -31,7 +31,7 @@ import numpy as np
 import torch
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parents[1]
 SUPPORT_DIR = REPO_ROOT / "experiments" / "shared"
 
 sys.path.insert(0, str(REPO_ROOT))
@@ -93,6 +93,16 @@ def parse_args() -> argparse.Namespace:
         "--probe-kinds",
         default="isotropic,label",
         help="Comma-separated probe distributions: isotropic,label",
+    )
+    parser.add_argument(
+        "--response-basis-probe-kind",
+        choices=["label", "isotropic"],
+        default="label",
+        help=(
+            "Probe distribution used to build the response-only final-state basis. "
+            "The default keeps the response basis task-local and then tests it "
+            "on each evaluation probe distribution."
+        ),
     )
     parser.add_argument(
         "--additivity-eps-scales",
@@ -1020,53 +1030,59 @@ def run() -> None:
             curve_r_max=args.curve_r_max,
         )
 
+        response_build_probes = sample_probes(
+            args.response_basis_probe_kind, args.n_build, A, generator
+        )
+        response_build_fd, M_resp = finite_difference_bundle(
+            model, x_ctx, x_tgt, y, response_build_probes, args.eps, return_hidden=True
+        )
+        assert M_resp is not None
+        resp_pack = weighted_svd_basis(
+            M_resp,
+            A_factors,
+            args.tau_sv,
+            r_max,
+            curve_r_max=args.curve_r_max,
+        )
+        resp_rank = int(resp_pack["rank"])
+        resp_Q = resp_pack["Q"]  # type: ignore[assignment]
+        resp_Q_all = resp_pack["Q_all"]  # type: ignore[assignment]
+
+        if args.skip_shuffled_label_control:
+            resp_shuf_Q = torch.zeros(n_ctx, 0, dtype=torch.float64)
+        else:
+            _, M_resp_shuf = finite_difference_bundle(
+                model,
+                x_ctx,
+                x_tgt,
+                y_shuf,
+                response_build_probes,
+                args.eps,
+                return_hidden=True,
+            )
+            assert M_resp_shuf is not None
+            resp_shuf_pack = weighted_svd_basis(
+                M_resp_shuf,
+                A_factors,
+                args.tau_sv,
+                r_max,
+                force_rank=resp_rank,
+                curve_r_max=args.curve_r_max,
+            )
+            resp_shuf_Q = resp_shuf_pack["Q"]  # type: ignore[assignment]
+
+        raw_actlr_fit = actlr_operator(raw_Q, response_build_probes, response_build_fd)
+        resp_actlr_fit = actlr_operator(resp_Q, response_build_probes, response_build_fd)
+
         for probe_kind in probe_kinds:
             build_probes = sample_probes(probe_kind, args.n_build, A, generator)
             eval_probes = sample_probes(probe_kind, args.n_eval, A, generator)
             add_U = sample_probes(probe_kind, args.n_additivity, A, generator)
             add_V = sample_probes(probe_kind, args.n_additivity, A, generator)
 
-            build_fd, M_resp = finite_difference_bundle(
-                model, x_ctx, x_tgt, y, build_probes, args.eps, return_hidden=True
-            )
-            assert M_resp is not None
             eval_fd, _ = finite_difference_bundle(
                 model, x_ctx, x_tgt, y, eval_probes, args.eps, return_hidden=False
             )
-
-            resp_pack = weighted_svd_basis(
-                M_resp,
-                A_factors,
-                args.tau_sv,
-                r_max,
-                curve_r_max=args.curve_r_max,
-            )
-            resp_rank = int(resp_pack["rank"])
-            resp_Q = resp_pack["Q"]  # type: ignore[assignment]
-            resp_Q_all = resp_pack["Q_all"]  # type: ignore[assignment]
-
-            if args.skip_shuffled_label_control:
-                resp_shuf_Q = torch.zeros(n_ctx, 0, dtype=torch.float64)
-            else:
-                _, M_resp_shuf = finite_difference_bundle(
-                    model,
-                    x_ctx,
-                    x_tgt,
-                    y_shuf,
-                    build_probes,
-                    args.eps,
-                    return_hidden=True,
-                )
-                assert M_resp_shuf is not None
-                resp_shuf_pack = weighted_svd_basis(
-                    M_resp_shuf,
-                    A_factors,
-                    args.tau_sv,
-                    r_max,
-                    force_rank=resp_rank,
-                    curve_r_max=args.curve_r_max,
-                )
-                resp_shuf_Q = resp_shuf_pack["Q"]  # type: ignore[assignment]
 
             for scale in eps_scales:
                 eps_add = args.eps * scale
@@ -1084,7 +1100,17 @@ def run() -> None:
             Kt_perm = Kt[:, torch.randperm(n_ctx, generator=generator)]
             basis_controls: List[Tuple[str, str, torch.Tensor, torch.Tensor, int, Dict[str, object]]] = [
                 ("raw", "galerkin_main", raw_Q, Kt, raw_rank, {"basis_source": "raw"}),
-                ("resp", "galerkin_main", resp_Q, Kt, resp_rank, {"basis_source": "response"}),
+                (
+                    "resp",
+                    "galerkin_main",
+                    resp_Q,
+                    Kt,
+                    resp_rank,
+                    {
+                        "basis_source": "response",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
+                ),
                 (
                     "raw_euclidean",
                     "galerkin_control",
@@ -1099,7 +1125,11 @@ def run() -> None:
                     euclidean_svd_basis(M_resp, A, resp_rank),
                     Kt,
                     resp_rank,
-                    {"basis_source": "response", "control": "euclidean_svd"},
+                    {
+                        "basis_source": "response",
+                        "control": "euclidean_svd",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
                 ),
                 (
                     "raw_random",
@@ -1115,7 +1145,11 @@ def run() -> None:
                     random_a_basis(n_ctx, resp_rank, A, generator),
                     Kt,
                     resp_rank,
-                    {"basis_source": "response", "control": "random_A_orthonormal"},
+                    {
+                        "basis_source": "response",
+                        "control": "random_A_orthonormal",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
                 ),
                 (
                     "raw_poly_y",
@@ -1131,7 +1165,11 @@ def run() -> None:
                     polynomial_y_basis(y, A, resp_rank, args.n_layers),
                     Kt,
                     resp_rank,
-                    {"basis_source": "response", "control": "single_seed_polynomial_y"},
+                    {
+                        "basis_source": "response",
+                        "control": "single_seed_polynomial_y",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
                 ),
                 (
                     "raw_shuffled_labels",
@@ -1147,7 +1185,11 @@ def run() -> None:
                     resp_shuf_Q,
                     Kt,
                     resp_rank,
-                    {"basis_source": "response", "control": "shuffled_labels"},
+                    {
+                        "basis_source": "response",
+                        "control": "shuffled_labels",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
                 ),
                 (
                     "raw_shuffled_Kt",
@@ -1163,7 +1205,11 @@ def run() -> None:
                     resp_Q,
                     Kt_perm,
                     resp_rank,
-                    {"basis_source": "response", "control": "shuffled_Kt"},
+                    {
+                        "basis_source": "response",
+                        "control": "shuffled_Kt",
+                        "response_basis_probe_kind": args.response_basis_probe_kind,
+                    },
                 ),
             ]
 
@@ -1189,7 +1235,7 @@ def run() -> None:
                 ("raw_actLR", raw_Q, raw_rank, "raw"),
                 ("resp_actLR", resp_Q, resp_rank, "response"),
             ]:
-                S = actlr_operator(Q, build_probes, build_fd)
+                S = raw_actlr_fit if source == "raw" else resp_actlr_fit
                 append_operator_record(
                     metric_records,
                     episode,
@@ -1203,12 +1249,14 @@ def run() -> None:
                     F_y,
                     eval_probes,
                     eval_fd,
-                    extra={"basis_source": source, "nominal_rank": rank},
+                    extra={
+                        "basis_source": source,
+                        "nominal_rank": rank,
+                        "actlr_fit_probe_kind": args.response_basis_probe_kind,
+                    },
                 )
 
             if probe_kind == "label" and args.n_interp > 0 and interp_lambdas:
-                raw_actlr = actlr_operator(raw_Q, build_probes, build_fd)
-                resp_actlr = actlr_operator(resp_Q, build_probes, build_fd)
                 interp_task = sample_probes("label", args.n_interp, A, generator)
                 interp_iso = sample_probes("isotropic", args.n_interp, A, generator)
                 for lam in interp_lambdas:
@@ -1220,8 +1268,8 @@ def run() -> None:
                         model, x_ctx, x_tgt, y, probes, args.eps, return_hidden=False
                     )
                     for basis, Q, rank, S_gal, S_act in [
-                        ("raw", raw_Q, raw_rank, galerkin_operator(Kt, raw_Q), raw_actlr),
-                        ("response", resp_Q, resp_rank, galerkin_operator(Kt, resp_Q), resp_actlr),
+                        ("raw", raw_Q, raw_rank, galerkin_operator(Kt, raw_Q), raw_actlr_fit),
+                        ("response", resp_Q, resp_rank, galerkin_operator(Kt, resp_Q), resp_actlr_fit),
                     ]:
                         append_interpolation_records(
                             interp_records,
