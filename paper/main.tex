@@ -1245,6 +1245,30 @@ between aggregate task leverage and task response damage is strong across matche
 controls (log--log Pearson 0.91, Spearman 0.87). This is the key causal specificity check: damage
 tracks task leverage, not merely activation energy or membership in the extracted subspace.
 
+As a complementary mediation check, we also intervene on the whole extracted subspace at
+residual state \(s=1\). Keeping only the \(A\)-projection of the context residual stream onto \(Q\),
+\[
+H_s^{\mathrm{ctx}}\mapsto QQ^\top AH_s^{\mathrm{ctx}},
+\]
+nearly preserves the task-local response: over 8 episodes,
+\[
+E_{\mathrm{task}}(F,T)=0.01866,
+\qquad
+\text{response damage}=0.01659.
+\]
+Removing the same subspace,
+\[
+H_s^{\mathrm{ctx}}\mapsto H_s^{\mathrm{ctx}}-QQ^\top AH_s^{\mathrm{ctx}},
+\]
+destroys the response:
+\[
+E_{\mathrm{task}}(F,T)=145.43,
+\qquad
+\text{response damage}=145.43.
+\]
+Thus, in this intervention family, the complement of \(Q\) is largely dispensable for the
+task-local KRR response, while \(Q\) itself is necessary.
+
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.78\linewidth]{../experiments/exp3_causal_surgery/results/experiment_3_key_surgery.pdf}

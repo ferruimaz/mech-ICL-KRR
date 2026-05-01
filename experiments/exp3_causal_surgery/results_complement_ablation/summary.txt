@@ -1,0 +1,8 @@
+Complement ablation of Q
+
+records=24
+
+name            n     pt_err      drift     E(F,T)    E(F,TQ)     damage
+base            8    0.00783    0.00000    0.00873    0.00865    0.00000
+keep_Q          8    0.00748    0.00095    0.01866    0.01865    0.01659
+remove_Q        8    3.98465    3.98167  145.42962  145.42965  145.42966
