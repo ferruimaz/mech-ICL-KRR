@@ -242,10 +242,12 @@ r:
 
 This rank is the number of target-visible ridge directions needed on the task label distribution.
 It is a requirement that an activation subspace may or may not meet after training; it is not a raw
-architectural budget. For the linear kernel, \(\rank(C_G)\le \rank(X_{\mathrm{ctx}})\le d_x\), so the
-theorem below gives a concrete finite-dimensional requirement. On the flat-spectrum full-rank
-geometries used in the target-rank sweep, the a priori rank calculation in the experiments verifies
-that this requirement is essentially \(d_x\) at the reported tolerance.
+architectural budget. For the linear kernel,
+\(\rank(C_G)\le \min\{\rank(X_{\mathrm{ctx}}),n_{\mathrm{tgt}}\}\le \min\{d_x,n_{\mathrm{tgt}}\}\),
+so the theorem below gives a concrete finite-dimensional requirement. On the flat-spectrum
+full-rank geometries used in the target-rank sweep with \(d_x\le15\), the a priori rank calculation
+in the experiments verifies that this requirement is essentially \(d_x\) at the reported tolerance.
+For the additional \(d_x=30\) stress row, \(n_{\mathrm{tgt}}=16\) caps the task-visible rank.
 
 The next quantity turns the rank question into an operator approximation question. Suppose
 two candidate label-to-prediction maps, \(S_1\) and \(S_2\), are equal on one realized label vector but
@@ -397,6 +399,130 @@ E(S_1,S_2;U)
 \]
 The corresponding population quantity \(E_P(S_1,S_2)\) was defined in Section 2.
 \end{definition}
+
+\begin{proposition}[Scale of the task-probe reduced-operator error]
+\label{prop:task-reduced-error-bound}
+Let \(P_{\mathrm{task}}\) be the task-label probe law \(u=A^{1/2}z\), \(z\sim\mathcal{N}(0,I)\), and
+let \(Q^\top A Q=I\). Set
+\[
+C=K_tA^{-1/2},\qquad W=A^{1/2}Q,\qquad P_Q=WW^\top .
+\]
+Then
+\[
+E_{P_{\mathrm{task}}}(T_Q,T)^2
+=
+\frac{\|C(I-P_Q)\|_F^2}{\|C\|_F^2+\eta_{\mathrm{num}}},
+\]
+and therefore
+\[
+0\le E_{P_{\mathrm{task}}}(T_Q,T)\le 1.
+\]
+If \(W\) is the span of the top \(r\) right singular vectors of \(C\), then
+\[
+E_{P_{\mathrm{task}}}(T_Q,T)^2
+=
+\frac{\sum_{i>r}s_i^2}{\sum_i s_i^2+\eta_{\mathrm{num}}},
+\]
+where \(s_i\) are the singular values of \(C\).
+\end{proposition}
+
+\begin{proof}
+Since \(W=A^{1/2}Q\), \(W^\top W=Q^\top A Q=I\), so \(P_Q=WW^\top\) is an orthogonal projection.
+For \(u=A^{1/2}z\),
+\[
+Tu=K_tA^{-1}A^{1/2}z=Cz,
+\]
+while
+\[
+T_Qu=K_tQQ^\top A^{1/2}z
+=K_tA^{-1/2}WW^\top z
+=CP_Qz.
+\]
+Thus \((T-T_Q)u=C(I-P_Q)z\). Taking expectation over \(z\sim\mathcal{N}(0,I)\) gives
+\[
+\mathbb{E}\|(T-T_Q)u\|_2^2=\|C(I-P_Q)\|_F^2,
+\qquad
+\mathbb{E}\|Tu\|_2^2=\|C\|_F^2.
+\]
+Because right multiplication by an orthogonal projection is a contraction in Frobenius norm,
+\(\|C(I-P_Q)\|_F\le\|C\|_F\), proving the bound. The singular-value formula follows from the
+Eckart--Young--Mirsky theorem, or equivalently Ky Fan's maximum principle, applied to the best
+rank-\(r\) right singular subspace of \(C\).
+\end{proof}
+
+\begin{proposition}[No universal upper bound for transformer-response errors]
+\label{prop:model-error-scale}
+Fix a finite probe set \(U\) with ridge-response energy
+\[
+R_U^2=\sum_{j=1}^m\|Tu_j\|_2^2>0.
+\]
+If the measured local response is zero on all probes, \(D_\varepsilon F(y)[u_j]=0\), then
+\[
+E_\varepsilon(F,T;U)=\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}}\le 1.
+\]
+If the measured response is the negative ridge response, \(D_\varepsilon F(y)[u_j]=-Tu_j\), then
+\[
+E_\varepsilon(F,T;U)=\frac{2R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}}\le 2.
+\]
+In contrast, \(E_\varepsilon(F,T;U)\) has no universal upper bound.
+\end{proposition}
+
+\begin{proof}
+The first two identities follow by substituting \(D_\varepsilon F(y)[u_j]=0\) and
+\(D_\varepsilon F(y)[u_j]=-Tu_j\) into the definition. For unboundedness, suppose on the probe set
+the measured response is \(D_\varepsilon F(y)[u_j]=c\,Tu_j\). Then
+\[
+E_\varepsilon(F,T;U)
+=
+|c-1|\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}},
+\]
+which diverges as \(|c|\to\infty\) whenever \(R_U>0\).
+\end{proof}
+
+\begin{proposition}[Triangle decomposition]
+\label{prop:error-triangle}
+For any fixed linear operator \(S\) and any finite probe set \(U\),
+\[
+E_\varepsilon(F,T;U)
+\le
+E_\varepsilon(F,S;U)+E(S,T;U).
+\]
+In particular, taking \(S=T_Q\) separates transformer-to-subspace error from subspace-to-ridge
+error.
+\end{proposition}
+
+\begin{proof}
+Stack the probe responses as columns. With
+\[
+M_F=[D_\varepsilon F(y)[u_1]\ \cdots\ D_\varepsilon F(y)[u_m]],
+\qquad
+M_S=[Su_1\ \cdots\ Su_m],
+\qquad
+M_T=[Tu_1\ \cdots\ Tu_m],
+\]
+the numerator of each error is a Frobenius norm, and all three errors have the same denominator
+\((\|M_T\|_F^2+\eta_{\mathrm{num}})^{1/2}\). The ordinary triangle inequality gives
+\[
+\|M_F-M_T\|_F\le \|M_F-M_S\|_F+\|M_S-M_T\|_F,
+\]
+and division by the common denominator proves the claim.
+\end{proof}
+
+\begin{remark}[How to read the error values]
+For the population task-probe reduced-operator error, the scale is bounded between 0 and 1.
+An error \(e\) is a relative RMS response error, and \(e^2\) is the fraction of task-probe
+ridge-response energy left unexplained by the reduced operator. Thus \(e=0.01\) means about one
+percent RMS error, \(e=0.1\) means about one percent squared response energy is missed, and
+\(e=0.54\) means roughly \(0.54^2\approx29\%\) of the task response energy is missed. Values near
+1 mean that the reduced operator leaves almost all task-visible ridge response unexplained.
+
+For transformer errors \(E_\varepsilon(F,T)\) and \(E_\varepsilon(F,T_Q)\), there is no analogous
+upper bound. A value near 1 is already comparable to a zero-local-response baseline, values above
+1 are worse than having no ridge-like label response on the probes, and very large values indicate
+that the finite-difference response is badly misaligned or unstable relative to the ridge response.
+All these readings are probe-law dependent: task-probe and isotropic-probe errors answer different
+questions.
+\end{remark}
 
 The first quantity, \(E_\varepsilon(F,S;U)\), is used whenever one side of the comparison is the
 trained transformer. If \(S=T\), it measures whether the transformer behaves like exact ridge
@@ -858,7 +984,8 @@ Experiment 2 uses 16 episodes per setting, 16 build probes, 16 hidden-validation
 8 causal-selection probes, 16 held-out evaluation probes, causal damage threshold 0.05, and at
 most 16 SVD candidates per layer. It includes depth checkpoints \(L\in\{2,4,6,8,12\}\), head
 checkpoints \(H\in\{1,2,8\}\), and input-dimension checkpoints
-\(d_x\in\{3,5,8,10,15\}\). Experiment 3 uses 32 episodes, 32 causal probes, \(r_{\max}=12\), and
+\(d_x\in\{3,5,8,10,15\}\), plus an additional \(d_x=30\) stress checkpoint trained with the same
+10k-step recipe. Experiment 3 uses 32 episodes, 32 causal probes, \(r_{\max}=12\), and
 removes \(k\in\{1,2,4\}\) directions. Auxiliary rank checks use 1024 sampled geometries per
 \(d_x\) at \((\epsilon,\alpha)=(0.01,0.05)\). Reported random seeds are 123 for Experiment 1 and
 42 for Experiments 2--3.
@@ -1119,6 +1246,7 @@ results are:
 8 & 8.0 & 8.0 & 1.000 & 0.0000 & 0.0129 & 0.0129\\
 10 & 10.0 & 10.0 & 1.000 & 0.0000 & 0.0131 & 0.0131\\
 15 & 14.9 & 14.5 & 0.971 & 0.0997 & 0.0174 & 0.1089\\
+30 & 16.0 & 21.4 & 1.336 & 0.5402 & 1.6873 & 1.5633\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1142,22 +1270,70 @@ comes from the episodes that miss one direction. Thus the failure is best read a
 recovery by the layerwise extraction rule at the largest tested dimension, not as evidence that the
 reduced-operator construction changes.
 
+The additional \(d_x=30\) row is a stress check rather than a clean continuation of the earlier
+rank sweep. Because this experiment uses \(n_{\mathrm{tgt}}=16\), the task-visible rank is capped at
+16 even though the input dimension is 30. The \(d_x=30\) checkpoint was trained with the same
+architecture and 10k-step recipe as the other \(d_x\)-sweep models, but its pointwise training
+evaluation remains far from ridge. Correspondingly, the causal layerwise extraction accepts many
+directions, \(d_{\mathrm{lay}}=21.4\), yet the induced reduced operator is not close to ridge:
+\[
+E(T_{Q_{\mathrm{lay}}},T)=0.5402,
+\qquad
+E(F,T)=1.6873.
+\]
+Thus \(d_x=30\) should be read as a high-dimensional undertrained/capacity stress case: having
+more accepted directions than the capped task-visible rank does not help if the selected span is
+not aligned with the task-visible KRR directions and the transformer itself is not in the KRR-like
+behavioral regime.
+
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.92\linewidth]{../experiments/exp2_validated_rank/results_2b_causal_tau005_r16_nbuild16_ep16/causal_rank_task.png}
-\caption{Experiment 2 target-rank sweep with causal layerwise selection. When the selected
+\caption{Experiment 2 target-rank sweep with causal layerwise selection for the original
+\(d_x\le15\) sweep. When the selected
 layerwise dimension reaches the task-visible rank, the reduced-operator error collapses to
 numerical zero. The \(d_x=15\) setting remains slightly under-ranked.}
 \label{fig:target-rank-sweep}
 \end{figure}
 
-The depth/head sweep gives the necessary qualification. At fixed \(d_x=5\), causal selection gives
-\(E(T_{Q_{\mathrm{lay}}},T)=0\) for all reported checkpoints, but transformer accuracy still varies. The
-\(L=2\) checkpoint has \(d_{\mathrm{lay}}=20.6\) and exact reduced-operator error, yet \(E(F,T)=0.185\).
-By contrast, the \(L=8\) checkpoint has \(d_{\mathrm{lay}}=5.0\), exact reduced-operator error, and
-\(E(F,T)=0.0095\); the \(H=2\) and \(L=12\) checkpoints are similar, with transformer errors 0.0090
-and 0.0094. The layerwise span therefore certifies availability of a subspace whose reduced
-operator is ridge, not that the trained transformer's response is automatically accurate.
+\begin{table}[!htbp]
+\centering
+\caption{Experiment 2 fixed-\(d_x=5\) depth/head sweep with causal layerwise selection, mean over
+16 episodes per checkpoint. All checkpoints use width \(D=128\). \(B_{\mathrm{nat}}\) is the
+pre-dependency native count, \(d_{\mathrm{lay}}\) is the accepted span dimension, and valClos is the
+maximum validation closure defect.}
+\scriptsize
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrrrrrrrr}
+\toprule
+Checkpoint & \(L\) & \(H\) & \(B_{\mathrm{nat}}\) & \(d_{\mathrm{lay}}\) & \(r_T\) &
+\(d_{\mathrm{lay}}/r_T\) & mean \(s_\ell\) & \(E(T_Q,T)\) & \(E(F,T_Q)\) &
+\(E(F,T)\) & valClos\\
+\midrule
+\(H=1\)  & 8  & 1 & 60.6  & 5.0  & 5.0 & 1.000 & 0.90 & 0.00000 & 0.01560 & 0.01560 & 0.04822\\
+\(H=2\)  & 8  & 2 & 61.2  & 5.0  & 5.0 & 1.000 & 0.98 & 0.00000 & 0.00904 & 0.00904 & 0.03302\\
+\(L=2\)  & 2  & 4 & 37.5  & 20.6 & 5.0 & 4.112 & 5.42 & 0.00000 & 0.18535 & 0.18535 & 0.01672\\
+\(L=4\)  & 4  & 4 & 29.2  & 5.1  & 5.0 & 1.025 & 1.21 & 0.00000 & 0.02528 & 0.02528 & 0.01555\\
+\(L=6\)  & 6  & 4 & 41.6  & 5.0  & 5.0 & 1.000 & 0.88 & 0.00000 & 0.01255 & 0.01255 & 0.02851\\
+\(H=8\)  & 8  & 8 & 57.2  & 5.0  & 5.0 & 1.000 & 0.79 & 0.00000 & 0.00982 & 0.00982 & 0.03199\\
+\(L=8\)  & 8  & 4 & 58.3  & 5.0  & 5.0 & 1.000 & 0.83 & 0.00000 & 0.00952 & 0.00952 & 0.03626\\
+\(L=12\) & 12 & 4 & 109.8 & 5.0  & 5.0 & 1.000 & 0.93 & 0.00000 & 0.00944 & 0.00944 & 0.02912\\
+\bottomrule
+\end{tabular}}
+\label{tab:fixed-dx-depth-head}
+\end{table}
+
+The depth/head sweep gives the necessary qualification. This is a fixed-\(d_x\) sweep: all these
+checkpoints are trained and evaluated at \(d_x=5\), with width \(D=128\), while depth varies over
+\(L\in\{2,4,6,8,12\}\) at four heads and head count varies over \(H\in\{1,2,4,8\}\) at eight layers.
+Causal selection gives \(E(T_{Q_{\mathrm{lay}}},T)=0\) for all reported checkpoints, but transformer
+accuracy still varies. The \(L=2\) checkpoint has \(d_{\mathrm{lay}}=20.6\) and exact reduced-operator
+error, yet \(E(F,T)=0.185\). By contrast, the \(L=8\) checkpoint has \(d_{\mathrm{lay}}=5.0\), exact
+reduced-operator error, and \(E(F,T)=0.0095\); the \(H=2\) and \(L=12\) checkpoints are similar,
+with transformer errors 0.0090 and 0.0094. The fixed-\(d_x\) sweep therefore separates two facts:
+the activations can expose a subspace from which KRR is recoverable, while the trained
+transformer may still fail to use that available subspace accurately. The layerwise span certifies
+availability of a ridge-sufficient operator subspace, not automatic behavioral KRR agreement.
 
 \paragraph{Interpretation.}
 Experiment 2 supports a sharper resource law:
@@ -1268,6 +1444,15 @@ E_{\mathrm{task}}(F,T)=145.43,
 \]
 Thus, in this intervention family, the complement of \(Q\) is largely dispensable for the
 task-local KRR response, while \(Q\) itself is necessary.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.82\linewidth]{../experiments/exp3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
+\caption{Experiment 3: whole-subspace complement ablation at residual state \(s=1\). Keeping only
+the \(A\)-projection onto \(Q\) nearly preserves both the local task response and the pointwise KRR
+prediction, while removing the same subspace destroys both.}
+\label{fig:complement-ablation}
+\end{figure}
 
 \begin{figure}[!htbp]
 \centering

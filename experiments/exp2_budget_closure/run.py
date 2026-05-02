@@ -122,6 +122,7 @@ CHECKPOINTS_2B: List[CkptCfg] = [
     CkptCfg("dx8",  "model_dx8.pt",   8, 128, 8, 4, "dx",  8),
     CkptCfg("dx10", "model_dx10.pt", 10, 128, 8, 4, "dx", 10),
     CkptCfg("dx15", "model_dx15.pt", 15, 128, 8, 4, "dx", 15),
+    CkptCfg("dx30", "model_dx30.pt", 30, 128, 8, 4, "dx", 30),
 ]
 
 

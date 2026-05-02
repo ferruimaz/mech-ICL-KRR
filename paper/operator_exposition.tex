@@ -17,6 +17,7 @@
 }
 
 \newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
 \newtheorem{remark}{Remark}
 
 \newcommand{\R}{\mathbb{R}}
@@ -228,6 +229,101 @@ E(S_1,S_2;U)
 \right)^{1/2}.
 \]
 This is used to compare exact ridge \(T\) with reduced ridge operators \(T_Q\).
+
+\begin{proposition}[Task-probe scale for \(T_Q\)]
+Let \(u=A^{1/2}z\), \(z\sim\mathcal{N}(0,I)\), and let \(Q^\top A Q=I\). With
+\[
+C=K_tA^{-1/2},\qquad W=A^{1/2}Q,\qquad P_Q=WW^\top,
+\]
+the population task-probe error satisfies
+\[
+E_{\mathrm{task}}(T_Q,T)^2
+=
+\frac{\|C(I-P_Q)\|_F^2}{\|C\|_F^2+\eta_{\mathrm{num}}}.
+\]
+Hence
+\[
+0\le E_{\mathrm{task}}(T_Q,T)\le 1.
+\]
+If \(W\) spans the top \(r\) right singular directions of \(C\), then
+\[
+E_{\mathrm{task}}(T_Q,T)^2
+=
+\frac{\sum_{i>r}s_i^2}{\sum_i s_i^2+\eta_{\mathrm{num}}}.
+\]
+\end{proposition}
+
+\begin{proof}
+Since \(W=A^{1/2}Q\), \(W^\top W=Q^\top A Q=I\). For \(u=A^{1/2}z\),
+\[
+Tu=K_tA^{-1}A^{1/2}z=Cz,
+\qquad
+T_Qu=K_tQQ^\top A^{1/2}z=K_tA^{-1/2}WW^\top z=CP_Qz.
+\]
+Taking expectation over \(z\) gives
+\[
+\mathbb{E}\|(T-T_Q)u\|_2^2=\|C(I-P_Q)\|_F^2,
+\qquad
+\mathbb{E}\|Tu\|_2^2=\|C\|_F^2.
+\]
+Right multiplication by the projection \(I-P_Q\) cannot increase Frobenius norm, so the error is at
+most 1. The singular-value expression is the standard optimal residual for keeping the top right
+singular subspace of \(C\).
+\end{proof}
+
+\begin{proposition}[Transformer errors are not bounded by 1]
+For a finite probe set \(U\), write
+\[
+R_U^2=\sum_j\|Tu_j\|_2^2.
+\]
+If \(D_\varepsilon F(y)[u_j]=0\) for all probes, then
+\[
+E_\varepsilon(F,T;U)=\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}}\le 1.
+\]
+If \(D_\varepsilon F(y)[u_j]=-Tu_j\), then the same calculation gives a value at most 2. More
+generally, if \(D_\varepsilon F(y)[u_j]=cTu_j\), then
+\[
+E_\varepsilon(F,T;U)
+=
+|c-1|\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}},
+\]
+so transformer-response errors have no universal upper bound.
+\end{proposition}
+
+\begin{proof}
+Substitute the three proposed finite-difference responses into the definition of
+\(E_\varepsilon(F,T;U)\). The last expression diverges as \(|c|\to\infty\) whenever the ridge
+response energy \(R_U^2\) is nonzero.
+\end{proof}
+
+\begin{proposition}[Triangle reading]
+For any fixed operator \(S\),
+\[
+E_\varepsilon(F,T;U)
+\le
+E_\varepsilon(F,S;U)+E(S,T;U).
+\]
+Taking \(S=T_Q\) is the decomposition used in the experiments.
+\end{proposition}
+
+\begin{proof}
+Stack the probe responses as columns. The three numerators are Frobenius norms of
+\(M_F-M_T\), \(M_F-M_S\), and \(M_S-M_T\), and all have the same denominator
+\((\sum_j\|Tu_j\|_2^2+\eta_{\mathrm{num}})^{1/2}\). The result is the Frobenius triangle inequality.
+\end{proof}
+
+\begin{remark}[Reading the numbers]
+For population task-probe reduced operators, \(E(T_Q,T)\in[0,1]\). An error \(e\) is a relative RMS
+operator error, while \(e^2\) is the missed fraction of task-probe ridge-response energy. Thus
+\(0.01\) is about one percent RMS error, \(0.1\) misses about one percent of squared response
+energy, and \(0.54\) misses about \(29\%\). Values near 1 mean the reduced operator leaves almost
+all task-visible ridge response unexplained.
+
+For transformer errors, the zero-response baseline is about 1, and values above 1 are worse than
+having no ridge-like label response on the probes. Very large values mean the local finite-difference
+response is badly misaligned or unstable relative to ridge. Task-probe and isotropic-probe values
+should not be conflated: they normalize against the ridge response on different direction laws.
+\end{remark}
 
 The probe distribution matters. Task-label probes sample
 \[
@@ -665,26 +761,71 @@ tested dimension, and the validation closure defect also rises.
 \begin{table}[htbp]
 \centering
 \caption{Experiment 2 complete target-rank sweep with causal layerwise selection, mean over 16
-episodes per setting. \(B_{\mathrm{nat}}\) is the pre-dependency native count, \(d_{\mathrm{lay}}\) is the
-accepted span dimension, and valClos is the maximum validation closure defect.}
+episodes per setting.}
 \scriptsize
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{lrrrrrrrrrr}
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{0.85}
+\scalebox{0.84}{%
+\begin{tabular}{lrrrrrr}
 \toprule
-Setting & \(B_{\mathrm{nat}}\) & \(d_{\mathrm{lay}}\) & \(r_T\) & \(d_{\mathrm{lay}}/r_T\) &
-mean \(s_\ell\) & \(E(T_Q,T)\) & \(E(F,T_Q)\) & \(E(F,T)\) & valClos & maxDmg\\
+Setting & \(d_{\mathrm{lay}}\) & \(r_T\) & \(d_{\mathrm{lay}}/r_T\) &
+\(E(T_Q,T)\) & \(E(F,T_Q)\) & \(E(F,T)\)\\
 \midrule
-\(d_x=3\) & 45.2 & 3.0 & 3.0 & 1.000 & 0.71 & 0.00000 & 0.00629 & 0.00629 & 0.02725 & 4.83975\\
-\(d_x=5\) & 58.6 & 5.0 & 5.0 & 1.000 & 0.85 & 0.00000 & 0.00911 & 0.00911 & 0.02725 & 90.54340\\
-\(d_x=8\) & 84.4 & 8.0 & 8.0 & 1.000 & 1.13 & 0.00000 & 0.01293 & 0.01293 & 0.02613 & 548.33628\\
-\(d_x=10\) & 103.5 & 10.0 & 10.0 & 1.000 & 1.39 & 0.00000 & 0.01306 & 0.01306 & 0.01492 & 486.55614\\
-\(d_x=15\) & 144.4 & 14.5 & 14.9 & 0.971 & 1.92 & 0.09967 & 0.10891 & 0.01743 & 0.10987 & 298142.79646\\
+\(d_x=3\) & 3.0 & 3.0 & 1.000 & 0.00000 & 0.00629 & 0.00629\\
+\(d_x=5\) & 5.0 & 5.0 & 1.000 & 0.00000 & 0.00911 & 0.00911\\
+\(d_x=8\) & 8.0 & 8.0 & 1.000 & 0.00000 & 0.01293 & 0.01293\\
+\(d_x=10\) & 10.0 & 10.0 & 1.000 & 0.00000 & 0.01306 & 0.01306\\
+\(d_x=15\) & 14.5 & 14.9 & 0.971 & 0.09967 & 0.10891 & 0.01743\\
+\(d_x=30\) & 21.4 & 16.0 & 1.336 & 0.54023 & 1.56335 & 1.68726\\
 \bottomrule
 \end{tabular}}
+\renewcommand{\arraystretch}{1}
 \end{table}
 
-The depth and head sweeps add an important qualification. Some checkpoints expose a sufficient
-layerwise span even when the transformer response is not accurate. Thus
+The \(d_x=30\) row is an exploratory stress case. Since \(n_{\mathrm{tgt}}=16\), the task-visible
+rank is capped at \(r_T=16\), even though the input dimension is 30. The same \(D=128,L=8,H=4\)
+architecture and 10k-step training recipe produces a checkpoint that is not behaviorally close to
+ridge, and the extracted span is not ridge-sufficient despite selecting more than 16 directions:
+\[
+E(T_Q,T)=0.54023,
+\qquad
+E(F,T)=1.68726.
+\]
+This reinforces the diagnostic separation: accepted causal directions are not enough unless they
+align with the task-visible KRR directions and the model is in the local KRR-like regime.
+
+\begin{table}[htbp]
+\centering
+\caption{Experiment 2 fixed-\(d_x=5\) depth/head sweep, mean over 16 episodes. All checkpoints use
+width \(D=128\).}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{0.85}
+\scalebox{0.84}{%
+\begin{tabular}{lrrrrrrr}
+\toprule
+Checkpoint & \(L\) & \(H\) & \(d_{\mathrm{lay}}\) & \(r_T\) & \(E(T_Q,T)\) &
+\(E(F,T_Q)\) & \(E(F,T)\)\\
+\midrule
+\(H=1\)  & 8  & 1 & 5.0  & 5.0 & 0.00000 & 0.01560 & 0.01560\\
+\(H=2\)  & 8  & 2 & 5.0  & 5.0 & 0.00000 & 0.00904 & 0.00904\\
+\(L=2\)  & 2  & 4 & 20.6 & 5.0 & 0.00000 & 0.18535 & 0.18535\\
+\(L=4\)  & 4  & 4 & 5.1  & 5.0 & 0.00000 & 0.02528 & 0.02528\\
+\(L=6\)  & 6  & 4 & 5.0  & 5.0 & 0.00000 & 0.01255 & 0.01255\\
+\(H=8\)  & 8  & 8 & 5.0  & 5.0 & 0.00000 & 0.00982 & 0.00982\\
+\(L=8\)  & 8  & 4 & 5.0  & 5.0 & 0.00000 & 0.00952 & 0.00952\\
+\(L=12\) & 12 & 4 & 5.0  & 5.0 & 0.00000 & 0.00944 & 0.00944\\
+\bottomrule
+\end{tabular}}
+\renewcommand{\arraystretch}{1}
+\end{table}
+
+The fixed-\(d_x=5\) depth and head sweeps add an important qualification. These checkpoints keep
+the task dimension and width fixed while varying depth over \(L\in\{2,4,6,8,12\}\) and head count
+over \(H\in\{1,2,4,8\}\). Causal selection gives \(E(T_Q,T)=0\) for all reported checkpoints, but
+behavior still varies: the shallow \(L=2\) model has an exact reduced-operator certificate but
+\(E(F,T)=0.185\), while the \(L=8\), \(H=2\), and \(L=12\) checkpoints have errors near \(10^{-2}\).
+Thus the sweep is a control against conflating availability with use:
 \[
 E(T_Q,T)\ \text{small}
 \]
@@ -692,7 +833,8 @@ does not imply
 \[
 E_\varepsilon(F,T)\ \text{small}.
 \]
-Representation sufficiency and model behavior remain separate claims.
+The activations may expose a ridge-sufficient subspace even when the trained transformer does not
+use it accurately enough to behave like KRR.
 
 \section{Experiment 3: Causal Direction Removal}
 
@@ -778,6 +920,14 @@ E_{\mathrm{task}}(F,T)=145.43,
 \]
 So the complement of \(Q\) is largely dispensable for the task-local KRR response in this
 intervention family, while \(Q\) itself is necessary.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\linewidth]{../experiments/exp3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
+\caption{Experiment 3: whole-subspace complement ablation at residual state \(s=1\). Keeping only
+the \(Q\)-projection nearly preserves the task-local response and pointwise KRR prediction;
+removing \(Q\) destroys both.}
+\end{figure}
 
 \begin{figure}[htbp]
 \centering
