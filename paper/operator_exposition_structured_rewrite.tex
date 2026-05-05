@@ -531,120 +531,15 @@ It is the number of task-relevant KRR directions needed to be prediction-equival
 the declared tolerance. Directions beyond \(r_T\) may be mathematically nonzero, but their combined
 effect on target prediction is below the chosen risk budget.
 
-This rank is an intrinsic finite-episode benchmark. If \(\dim\spanop(Q)<r_T\), then no
-rank-\(\dim\spanop(Q)\) operator, even an optimally aligned one, can reach the five-percent
-prediction-risk tolerance. If \(\dim\spanop(Q)\ge r_T\), success is still not automatic: the span
-must align with the large right singular directions of \(C_G\), because those are the task-label
-modes that exact KRR uses for prediction.
+This is a finite-episode benchmark. It is computed from the sampled KRR operator before looking at
+activations. If \(\dim\spanop(Q)<r_T\), then no rank-\(\dim\spanop(Q)\) reduced KRR operator can
+reach the five-percent prediction-risk tolerance. If \(\dim\spanop(Q)\ge r_T\), success is still not
+automatic: the span must align with the leading right singular directions of \(C_G\), because those
+are the task-label modes that exact KRR uses for prediction.
 
-For the linear kernel,
-\[
-\operatorname{rank}(C_G)
-=\operatorname{rank}(T)
-=\operatorname{rank}(K_t)
-\le \min\{d_x,n_{\mathrm{ctx}},n_{\mathrm{tgt}}\},
-\]
-because \(A\) is invertible and \(K_t=X_{\mathrm{tgt}}X_{\mathrm{ctx}}^\top\). Hence
-\[
-r_T(G)
-\le \min\{d_x,n_{\mathrm{ctx}},n_{\mathrm{tgt}}\}.
-\]
-In the flat random linear geometries used in the small-\(d_x\) sweep, this upper bound is typically
-attained at the five-percent risk tolerance. Writing \(X_{\mathrm{ctx}}=P\Sigma V^\top\),
-\[
-C_G
-=X_{\mathrm{tgt}}V\,
-\operatorname{diag}\!\left(\frac{\sigma_i}{\sqrt{\sigma_i^2+\sigma^2}}\right)P^\top .
-\]
-With \(n_{\mathrm{ctx}}=47\) and \(\sigma^2=0.1\), the context singular values are typically much
-larger than the ridge noise, so the shrinkage factors are close to one. When
-\(d_x\le n_{\mathrm{tgt}}=16\), the target-side factor \(X_{\mathrm{tgt}}V\) is generically full column
-rank, so the prediction-risk rank is empirically close to \(d_x\). In the \(d_x=30\) stress case,
-\(n_{\mathrm{tgt}}=16\) caps the prediction-risk rank.
-
-\section{Nonlinear Kernels and the Sample-Size Elbow}
-
-The prediction-risk rank definition does not rely on the linear kernel. For a general kernel, replace
-\[
-K=X_{\mathrm{ctx}}X_{\mathrm{ctx}}^\top,
-\qquad
-K_t=X_{\mathrm{tgt}}X_{\mathrm{ctx}}^\top
-\]
-by \(K_{ij}=k(x_i,x_j)\) and \((K_t)_{aj}=k(x_a^{\mathrm{tgt}},x_j)\), keep
-\(A=K+\sigma^2 I\), and again form
-\[
-C_G=K_tA^{-1/2}.
-\]
-The singular spectrum of \(C_G\) is the finite-episode ridge response spectrum on task-distributed
-label perturbations. Its tail, compared with \(R_{\mathrm{KRR}}\), defines \(r_T(G)\). It is the
-number of directions a mechanism must represent, and align with, to implement KRR at the
-prediction-risk tolerance on that episode.
-
-For nonlinear kernels, \(r_T\) should not be read as an input-dimension count. The finite matrix
-still obeys
-\[
-\operatorname{rank}(C_G)\le \min\{n_{\mathrm{ctx}},n_{\mathrm{tgt}}\},
-\]
-but the population source of the rank is the Mercer spectrum of the kernel under the input law
-\(\rho\):
-\[
-k(x,x')=\sum_{j\ge0}\mu_j\phi_j(x)\phi_j(x'),
-\qquad
-\mu_0\ge\mu_1\ge\cdots\ge0.
-\]
-With \(n=n_{\mathrm{ctx}}\), ridge resolves mode \(j\) with visible energy approximately
-\[
-e_j(n)
-\asymp
-\mu_j\,\frac{n\mu_j}{n\mu_j+\sigma^2}
-=
-\frac{\mu_j^2}{\mu_j+\sigma^2/n}.
-\]
-The multiplier \(n\mu_j/(n\mu_j+\sigma^2)\) is a statistical visibility factor. Modes satisfying
-\[
-n\mu_j\ll\sigma^2
-\]
-are below the ridge noise floor and contribute only weakly to the label-response operator. Modes
-satisfying \(n\mu_j\gtrsim\sigma^2\) are visible. Thus the population analogue of the
-prediction-risk rank is
-\[
-r_*(n;\alpha)
-:=
-\min\left\{
-r:
-\sum_{j>r}e_j(n)
-\le
-\alpha R_{\mathrm{KRR}}^{\mathrm{pop}}(n)
-\right\}.
-\]
-Here \(R_{\mathrm{KRR}}^{\mathrm{pop}}(n)\) is the population posterior prediction risk at context
-size \(n\).
-
-This gives the right reading of finite ranks:
-\[
-r_T(G)
-\approx
-\min\{n_{\mathrm{ctx}},\,n_{\mathrm{tgt}},\,r_*(n_{\mathrm{ctx}};0.05)\},
-\]
-up to finite-sample fluctuations. The first two terms are sequence-design caps. They are not
-intrinsic limitations of the kernel; they can be raised by using more context or target points. The
-third term is intrinsic to the chosen kernel, input distribution, noise level, context size, and
-tolerance. It is the prediction-relevant rank of the population-visible KRR operator.
-
-This is the sample-size elbow. Increasing \(n_{\mathrm{ctx}}\) lowers the visibility threshold
-\(\sigma^2/n_{\mathrm{ctx}}\) and can reveal additional Mercer modes. Increasing
-\(n_{\mathrm{tgt}}\) does not reveal new population modes, but it prevents the finite diagnostic from
-being target-capped. To train or certify a transformer as implementing the full visible KRR operator
-in a regime, one should choose sequence lengths so that
-\[
-\min\{n_{\mathrm{ctx}},\,n_{\mathrm{tgt}},\,r_*(n_{\mathrm{ctx}};0.05)\}
-=
-r_*(n_{\mathrm{ctx}};0.05).
-\]
-Otherwise the model may succeed on, and the diagnostics may certify only, a capped low-rank slice
-of KRR rather than the full prediction-relevant operator. Since \(r_*(n;0.05)\) depends only on the
-kernel spectrum, input law, noise level, context size, and tolerance, it can be estimated before
-training and used to choose the context and target lengths.
+The same definition applies to nonlinear kernels after replacing \(K\) and \(K_t\) by the
+corresponding finite kernel matrices. No population spectral assumption is needed for the
+experiments below.
 
 \begin{proposition}[Prediction-risk excess for \(T_Q\)]
 Let \(u=A^{1/2}z\), \(z\sim\mathcal{N}(0,I)\), and let \(Q^\top A Q=I\). With
@@ -834,231 +729,101 @@ using exactly the intrinsic task rank, and the best error achievable inside \(C_
 
 \section{Experiment 1: Final-State Operator Certificate}
 
-Experiment 1 is the endpoint certificate. It asks two questions. First, does the trained
-transformer locally behave like exact KRR at the final prediction output? Second, if it does, is
-there a compact final-state context-position subspace whose induced reduced ridge operator explains
-that behavior?
+The experiments are organized as an evidence ladder. Experiment 1 first certifies that the
+trained model has a task-local ridge-like response at the final output and that this response is
+explained by a compact final-state context subspace. Experiment 2 asks where such a subspace becomes
+available across layers. Experiment 3 then intervenes on the certified directions to test causal
+use.
 
-For each episode, the geometry \(G\) is fixed and the exact ridge operator
-\[
-T=K_tA^{-1}
-\]
-is computed. The experiment draws separate build probes and held-out evaluation probes. Build
-probes are used only to extract bases or fit controls; all reported operator errors are evaluated
-after the basis is frozen. In the reported run there are 4 episodes, 16 build probes, 32 held-out
-evaluation probes, finite-difference scale \(\varepsilon=10^{-3}\), and a predeclared extraction rank
-cap \(r_{\max}=9\).
+The first step is deliberately narrow. For each episode, the geometry \(G\) is fixed, exact KRR is
+the operator \(T=K_tA^{-1}\), and the transformer is probed only by infinitesimal context-label
+perturbations. Build probes are used to extract the raw and response final-state bases; all reported
+errors use held-out task-label probes after the basis is frozen. The run uses 4 episodes, 16 build
+probes, 32 held-out probes, \(\varepsilon=10^{-3}\), and extraction rank cap \(r_{\max}=9\).
 
-The experiment constructs two final-state bases. The raw basis uses the unperturbed final context
-residual stream
-\[
-M_{\mathrm{raw}}:=H_L^{\mathrm{ctx}}\in\R^{n_{\mathrm{ctx}}\times D}.
-\]
-Each residual coordinate is a context-position pattern, and the \(A\)-weighted SVD of
-\(M_{\mathrm{raw}}\) gives an \(A\)-orthonormal basis \(Q_{\mathrm{raw}}\).
-
-The response-only basis uses only the part of the final residual stream that moves under label
-perturbations. For task-label build probes \(u_1,\ldots,u_m\), define
-\[
-Z_L(u_j)=
-\frac{
-H_L^{\mathrm{ctx}}(y+\varepsilon u_j)-H_L^{\mathrm{ctx}}(y-\varepsilon u_j)
-}{2\varepsilon},
-\qquad
-M_{\mathrm{resp}}=[Z_L(u_1),\ldots,Z_L(u_m)].
-\]
-An \(A\)-weighted SVD of \(M_{\mathrm{resp}}\) gives \(Q_{\mathrm{resp}}\). This is a stricter
-availability test than the raw basis: the directions must be visible in label-induced hidden-state
-changes, not merely present in the final residual stream.
-
-For either frozen basis \(Q\), the KRR-structured reduced operator is
-\[
-T_Q=K_tQQ^\top.
-\]
-The experiment evaluates both subspace sufficiency,
-\[
-\rho_G(T_Q),
-\]
-and model-subspace alignment,
-\[
-E_\varepsilon(F,T_Q).
-\]
-
-It also includes a same-span least-squares readout control, denoted \(T_{\mathrm{actLR}}\). For any
-perturbation \(u\), both \(T_Q\) and this control first form the same activation coordinates
-\[
-z=Q^\top u.
-\]
-The KRR-structured reduced operator then uses the KRR-implied readout from those coordinates:
-\[
-T_Qu=(K_tQ)(Q^\top u),
-\qquad
-C_{\mathrm{KRR}}=K_tQ.
-\]
-The control keeps the same features \(Q^\top u\), but fits the readout directly to the
-transformer's finite-difference responses on build probes \(u_1,\ldots,u_B\):
-\[
-C_Q\in
-\arg\min_{C\in\R^{n_{\mathrm{tgt}}\times r}}
-\sum_{j=1}^B
-\left\|D_\varepsilon F(y)[u_j]-CQ^\top u_j\right\|_2^2.
-\]
-It then defines
-\[
-T_{\mathrm{actLR}}u=C_Q(Q^\top u),
-\qquad
-T_{\mathrm{actLR}}:=C_QQ^\top.
-\]
-Thus the two operators use the same \(Q\)-features but different readouts: \(T_Q\) uses the fixed KRR
-readout \(K_tQ\), while \(T_{\mathrm{actLR}}\) uses the least-squares readout \(C_Q\) fitted to the
-transformer. This control is important because it separates two questions. A good
-\(T_{\mathrm{actLR}}\) fit would show that the transformer's local response is decodable from the
-activation coordinates. A good \(T_Q\) fit shows something stronger: the same coordinates support
-the KRR-constrained readout.
-
-The behavioral check succeeds on task-label probes. The pointwise prediction is already close to
-KRR, with relative model--KRR discrepancy \(0.01045\), and the held-out finite-difference operator
-error is
-\[
-E_\varepsilon(F,T)=0.01207.
-\]
-The additivity defect is much smaller than this error: \(3.96\times10^{-4}\) on task probes and
-\(3.91\times10^{-3}\) on isotropic probes at \(\varepsilon=10^{-3}\), with comparable values at
-\(10\varepsilon\). Thus the local response is sufficiently close to additive for the operator
-comparison to be meaningful.
-
-The final-state subspace certificates also succeed on task probes. For the raw basis,
-\[
-\rho_G(T_Q)=0.00279,
-\qquad
-E_\varepsilon(F,T_Q)=0.01194.
-\]
-For the response-only basis,
-\[
-\rho_G(T_Q)=0.01750,
-\qquad
-E_\varepsilon(F,T_Q)=0.01239.
-\]
-So the final residual stream exposes compact context-position subspaces whose induced reduced
-ridge operators add less than five percent of KRR posterior risk, and the transformer's local
-response follows those reduced operators.
-
-The \(T_{\mathrm{actLR}}\) control shows what this certificate is not saying. On task probes,
-\(T_{\mathrm{actLR}}\) fits the transformer slightly better than \(T_Q\): for the raw basis
-\[
-E_\varepsilon(F,T_{\mathrm{actLR}})=0.00729
-\quad\text{versus}\quad
-E_\varepsilon(F,T_Q)=0.01195.
-\]
-But it agrees worse with exact KRR:
-\[
-\rho_G(T_{\mathrm{actLR}})=0.16040
-\quad\text{versus}\quad
-\rho_G(T_Q)=0.00279.
-\]
-The response-only basis shows the same pattern. Therefore the certificate is not merely that a
-free low-rank readout can fit the model response; it is that the same activation-derived subspace
-supports the KRR-structured operator. Matched random subspaces of the same rank fail the
-operator-sufficiency test by large factors, with \(\rho_G(T_Q)\approx15.9\) for the raw rank and
-\(\rho_G(T_Q)\approx11.7\) for the response rank.
-
-The limitation appears immediately off distribution. On isotropic probes,
-\[
-E_\varepsilon(F,T)\approx0.302.
-\]
-Thus the model is no longer KRR-like on arbitrary label directions. Experiment 1 therefore supports
-a task-local final-state operator certificate, not a global implementation of ridge regression on
-all context-label directions. The subspace sufficiency claim remains stated in the task-distributed
-prediction-risk metric \(\rho_G\).
+The endpoint certificate has three parts. First, the model's local response is already close to
+KRR on task-label directions. Second, the activation-derived subspace induces a KRR-structured
+operator \(T_Q=K_tQQ^\top\) whose prediction-risk excess is far below the five-percent tolerance.
+Third, this is not merely a decodability result: a same-span least-squares readout can fit the
+model response slightly better, but it is much less KRR-like.
 
 \begin{table}[htbp]
 \centering
-\caption{Experiment 1 predictive and behavioral checks, mean over 4 episodes.}
-\begin{tabular}{lccc}
+\caption{Experiment 1 endpoint certificate, mean over 4 episodes. \(E(F,S)\) is the held-out
+finite-difference operator error on task-label probes. \(\rho_G(S)\) is exact prediction-risk excess
+relative to KRR.}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.30\linewidth}p{0.30\linewidth}p{0.32\linewidth}@{}}
 \toprule
-Quantity & Transformer & Exact KRR & Transformer--KRR\\
+Check & Result & Reading\\
 \midrule
-Pointwise MSE to noiseless teacher targets & 0.0161 & 0.0148 & --\\
-Pointwise relative discrepancy & -- & -- & 0.01045\\
-Held-out task operator error \(E_\varepsilon(F,T)\) & -- & -- & 0.01207\\
+Model vs. exact KRR &
+\(E(F,T)=0.01207\); pointwise discrepancy \(0.01045\) &
+The checkpoint is locally KRR-like on task-label perturbations.\\
+Raw final basis &
+\(\rho_G(T_Q)=0.00279\), \(E(F,T_Q)=0.01195\) &
+The final residual stream contains a highly sufficient KRR source subspace.\\
+Response final basis &
+\(\rho_G(T_Q)=0.01750\), \(E(F,T_Q)=0.01239\) &
+The sufficient subspace is also visible in label-induced hidden-state motion.\\
+Same-span readout control &
+raw: \(E(F,T_{\mathrm{actLR}})=0.00729\), \(\rho_G(T_{\mathrm{actLR}})=0.16040\) &
+A free readout can fit the model, but the KRR-constrained readout is the one that remains KRR-like.\\
+Matched random subspaces &
+\(\rho_G(T_Q)\approx15.9\) at raw rank, \(\approx11.7\) at response rank &
+Sufficiency is not explained by rank alone.\\
+Isotropic label probes &
+\(E(F,T)\approx0.302\) &
+The certificate is task-local, not a global equality with ridge regression.\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{table}[htbp]
-\centering
-\caption{Experiment 1 additivity defect, mean over 4 episodes. The defect measures the normalized
-failure of finite-difference responses to add:
-\(\bigl(\sum_j\|D_\varepsilon F[u_j+v_j]-D_\varepsilon F[u_j]-D_\varepsilon F[v_j]\|^2/
-(\sum_j\|T(u_j+v_j)\|^2+\eta_{\mathrm{num}})\bigr)^{1/2}\).}
-\begin{tabular}{lcc}
-\toprule
-Probe distribution & \(\varepsilon=10^{-3}\) & \(\varepsilon=10^{-2}\)\\
-\midrule
-Task-label probes & \(3.96\times10^{-4}\) & \(3.43\times10^{-4}\)\\
-Isotropic probes & \(3.91\times10^{-3}\) & \(2.84\times10^{-3}\)\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{table}[htbp]
-\centering
-\caption{Reduced operator vs. same-span response-fitted low-rank control, mean over 4 episodes.
-\(E_\varepsilon(F,S)\) denotes transformer-to-\(S\) finite-difference operator error on task probes;
-\(\rho_G(S)\) is exact prediction-risk excess relative to KRR.}
-\begin{tabular}{lcccc}
-\toprule
-Basis & \(E(F,T_Q)\) & \(E(F,T_{\mathrm{actLR}})\) & \(\rho_G(T_Q)\) & \(\rho_G(T_{\mathrm{actLR}})\)\\
-\midrule
-raw & 0.01195 & 0.00729 & 0.00279 & 0.16040\\
-response & 0.01239 & 0.01173 & 0.01750 & 0.31705\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The original plotting diagnostics are omitted here because those panels used the superseded
-finite-probe response-energy normalization for subspace sufficiency. The retained table reports the
-same certificate with the prediction-risk excess \(\rho_G\), which is the metric used throughout the
-revised paper.
+The finite-difference comparison is meaningful because the local response is close to additive:
+at \(\varepsilon=10^{-3}\), the normalized additivity defect is \(3.96\times10^{-4}\) on task probes
+and \(3.91\times10^{-3}\) on isotropic probes. Thus Experiment 1 establishes the basic endpoint
+claim: on the task distribution, a compact activation subspace supports the KRR-constrained
+operator that the transformer locally follows.
 
 \FloatBarrier
 
 \section{Experiment 2: Prediction-Risk Rank and Layerwise Availability}
 
-The second experiment asks how prediction-relevant KRR directions appear across layers. In the
-revised diagnostic, each layer \(\ell\) produces a candidate response span \(C_\ell\) from
-\(M_\ell=D_yH_\ell^{\mathrm{ctx}}\). Inside that span, directions are ordered by their contribution to
-the KRR operator, and prefixes \(Q_{\ell,k}\) are evaluated by the risk-normalized reduced-operator
-loss
+Experiment 2 separates two facts that are easy to conflate. The prediction-risk rank \(r_T\) is an
+intrinsic property of the finite KRR problem; it is computed from \(C_G=K_tA^{-1/2}\) before looking
+at the transformer. The layerwise rank \(k_\ell^{5\%}\) is representation-dependent; it asks how
+many directions from the transformer's layer-\(\ell\) response span are needed to reach
+\(\rho_G\le0.05\). The diagnostic therefore asks not whether the hidden state has dimension
+\(r_T\), but whether it contains an approximately \(r_T\)-dimensional KRR-sufficient subspace.
+
+At each layer, we form the response span \(C_\ell\) from \(M_\ell=D_yH_\ell^{\mathrm{ctx}}\). Within
+that candidate span, directions are ordered by KRR usefulness, and prefixes \(Q_{\ell,k}\) are
+evaluated by
 \[
 \rho_G(T_{Q_{\ell,k}})
 =
 \frac{\|(T-T_{Q_{\ell,k}})A^{1/2}\|_F^2}{R_{\mathrm{KRR}}+\eta_{\mathrm{num}}}.
 \]
-The rank \(r_T\) is therefore a target dimensional budget, not a denominator for a dimension ratio.
-The main question is:
-\[
-\rho_G(T_{Q_{\ell,r_T}})\le0.05?
-\]
 
-We first rerun this new Experiment 2 on the small linear \(d_x\) checkpoints from the original
-target-rank sweep. The geometry is \(n_{\mathrm{ctx}}=47\), \(n_{\mathrm{tgt}}=16\), with 16 episodes
-per checkpoint. For these easy linear tasks, the prediction-risk rank equals the input dimension
-up to the target cap. The layerwise sufficiency diagnostic finds the KRR-sufficient source subspace
-essentially immediately.
+The small linear checkpoints calibrate the diagnostic in the regime where the answer is expected to
+be simple. For \(d_x=3,5,8,10,15\), with \(n_{\mathrm{ctx}}=47,n_{\mathrm{tgt}}=16\), the
+prediction-risk rank matches the input dimension up to the target cap, and the final
+rank-to-five-percent matches \(r_T\). This is not the main emergence result: in these linear tasks,
+the sufficient source subspace is already visible very early. Its role is to show that the revised
+\(r_T\), \(k_\ell^{5\%}\), and \(\rho_G\) diagnostic recovers the obvious low-dimensional answer.
 
 \begin{table}[htbp]
 \centering
-\caption{Revised Experiment 2 on small linear checkpoints. The response basis is built from
-\(D_yH_\ell^{\mathrm{ctx}}\). ``First layer'' is the first layer whose response span reaches
-\(\rho_G(T_Q)\le0.05\). ``Final rank to 5\%'' is \(k_L^{5\%}\), not the intrinsic task rank
-\(r_T\), although the two coincide in these simple linear runs.}
+\caption{Experiment 2 linear calibration. The table checks that the prediction-risk diagnostic
+recovers \(r_T\approx d_x\) in simple linear tasks. ``First layer'' is the first layer whose response
+span reaches \(\rho_G\le0.05\).}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{0.9}
 \begin{tabular}{lrrrrr}
 \toprule
-Checkpoint & \(r_T\) & first layer & final cand. dim. & final rank to 5\% & \(E(F,T)\)\\
+Checkpoint & \(r_T\) & first layer & final cand. dim. & \(k_L^{5\%}\) & \(E(F,T)\)\\
 \midrule
 \(d_x=3\)  & 3.0  & 0 & 27.5 & 3.0  & 0.00617\\
 \(d_x=5\)  & 5.0  & 0 & 27.6 & 5.0  & 0.00918\\
@@ -1070,22 +835,21 @@ Checkpoint & \(r_T\) & first layer & final cand. dim. & final rank to 5\% & \(E(
 \renewcommand{\arraystretch}{1}
 \end{table}
 
-This table should not be read as saying that all computation is already complete at layer 0. It says
-something narrower: in simple linear tasks, the context-side subspace needed to build the KRR
-operator is already linearly available in the early label/input response geometry. This is plausible:
-the labels are injected directly into context positions, and the KRR-relevant source directions are
-low-dimensional functions of the fixed linear geometry. Later layers still matter for the actual
-model map \(F\), but the containment question saturates early.
-
-This is why the nonlinear RBF checkpoint is the more informative emergence test. In the RBF
-\(n_{\mathrm{ctx}}=128,n_{\mathrm{tgt}}=128\) checkpoint, \(r_T\approx24.75\), and the response span
-does not start sufficient. The main transition occurs between layers 1 and 2:
+The cleanest emergence result is instead the nonlinear RBF checkpoint trained and diagnosed at
+\(n_{\mathrm{ctx}}=128,n_{\mathrm{tgt}}=128\). The model itself is close to exact KRR in this regime:
+\[
+E(F,T)=0.0306,
+\qquad
+\rho(F)=0.0203.
+\]
+For this finite KRR problem, \(r_T\approx24.75\). Unlike the small linear sweep, the relevant
+subspace is not already present at layer 0. It appears over the first few layers.
 
 \begin{table}[htbp]
 \centering
-\caption{Revised Experiment 2 on the RBF \(128\times128\) checkpoint, response basis. The column
-``rank to 5\%'' is \(k_\ell^{5\%}\), the representation-dependent prefix rank required to reach
-\(\rho_G\le0.05\).}
+\caption{Experiment 2 main emergence result: selected layers of the RBF \(128\times128\) checkpoint.
+Here \(r_T\approx24.75\). The response span is ordered by KRR usefulness before evaluating
+\(\rho_G\).}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{0.9}
@@ -1096,31 +860,24 @@ Layer & cand. dim. & rank to 5\% & \(\rho_G(T_{Q_{\ell,r_T}})\) & best excess\\
 0 & 16  & --   & 1.147 & 1.147\\
 1 & 51  & 38.0 & 0.100 & 0.074\\
 2 & 84  & 26.9 & 0.058 & 0.016\\
-3 & 101 & 25.5 & 0.052 & 0.006\\
 4 & 107 & 25.2 & 0.050 & 0.004\\
-5 & 113 & 25.1 & 0.049 & 0.002\\
-6 & 103 & 25.4 & 0.050 & 0.004\\
-7 & 126 & 24.9 & 0.048 & 0.000\\
 8 & 119 & 24.9 & 0.048 & 0.001\\
 \bottomrule
 \end{tabular}
 \renewcommand{\arraystretch}{1}
 \end{table}
 
-Thus, for the nonlinear task, the KRR-relevant response subspace mostly emerges by layer 2, becomes
-essentially sufficient by layers 3--4, and then stabilizes. The final response span has dimension
-about \(119\), but the selected KRR-sufficient prefix has dimension about \(25\), matching \(r_T\).
-The hidden response is not compressed to the task rank; rather, a task-rank KRR subspace is present
-inside a larger response span.
+The transition is the main point. Layer 0 has only a 16-dimensional response span and is far from
+sufficient. By layer 2, a nearly task-rank subspace is visible; by layers 4 and 8,
+\(k_\ell^{5\%}\) matches \(r_T\) to within finite-sample noise. The final response span is much
+larger than \(r_T\), but it contains an approximately \(25\)-dimensional KRR-sufficient subspace.
+Experiment 2 is therefore an availability diagnostic: it locates when the prediction-risk-rank
+subspace becomes linearly available, without yet claiming that the model causally uses it.
 
-This is the final role of Experiment 2: it is an availability diagnostic, not an individual
-intervention diagnostic. It asks whether a KRR-sufficient subspace is present in the layerwise
-response span and at what layer it becomes available. Causal use is tested separately in
-Experiment 3.
+\subsection{Stress Cases: Availability Is Not the Same as Use}
 
-\subsection{Dimension-40 Regime-Mismatch Stress Test}
-
-The \(d_x=40\) checkpoint separates availability from use. It was trained in a target-poor regime:
+The \(d_x=40\) checkpoint gives the cleanest warning against over-reading availability. It was
+trained in a target-poor regime:
 \[
 n_{\mathrm{tgt}}=8,
 \qquad
@@ -1136,24 +893,23 @@ training episode. The checkpoint README reports
 \[
 \mathrm{MSE}/\mathrm{MSE}_{\mathrm{KRR}}=1.638,
 \]
-so this is not an exact-KRR solver; the question is whether the remaining error is explained by
-missing KRR source directions or by imperfect use of directions that are already present.
+so this checkpoint is not an exact-KRR solver. The diagnostic asks whether the error comes from
+missing source directions or from imperfect use of directions that are present.
 
 \begin{table}[htbp]
 \centering
-\caption{Final Experiment 2 on the \(d_x=40\) checkpoint with the native sampler and target-rich
-diagnostic \(n_{\mathrm{ctx}}=47,n_{\mathrm{tgt}}=40\). The final-layer rows compare response-only,
-raw, and combined candidate spans.}
+\caption{\(d_x=40\) regime-mismatch stress test. Here \(r_T=21.0\) and
+\(E(F,T)=0.0939\) for all rows.}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{0.9}
-\begin{tabular}{lrrrrrrr}
+\begin{tabular}{lrrrr}
 \toprule
-Basis & cand. dim. & \(r_T\) & \(k_L^{5\%}\) & reach & \(\rho_G(T_{Q_{L,r_T}})\) & best \(\rho_G\) & \(E(F,T)\)\\
+Basis & cand. dim. & reach & \(\rho_G(T_{Q_{L,r_T}})\) & best \(\rho_G\)\\
 \midrule
-response & 40.0 & 21.0 & 21.3 & 0.50 & 0.118 & 0.086 & 0.0939\\
-raw      & 39.3 & 21.0 & 21.6 & 1.00 & 0.047 & 0.007 & 0.0939\\
-combined & 40.0 & 21.0 & 21.5 & 0.75 & 0.077 & 0.043 & 0.0939\\
+response & 40.0 & 0.50 & 0.118 & 0.086\\
+raw      & 39.3 & 1.00 & 0.047 & 0.007\\
+combined & 40.0 & 0.75 & 0.077 & 0.043\\
 \bottomrule
 \end{tabular}
 \renewcommand{\arraystretch}{1}
@@ -1166,130 +922,25 @@ reach \(0.50\). Thus the target-rich failure is not simply absence of the releva
 KRR-oriented subspace is visible in the residual stream, but the label-induced response geometry
 and the realized model map do not stably use it as the exact target-rich KRR operator.
 
-The model-side error confirms this reading:
-\[
-E(F,T)\approx0.0939,
-\qquad
-\frac{\mathbb{E}\|(F-T)y\|^2}{R_{\mathrm{KRR}}}\approx0.132.
-\]
-These values are too large for a converged KRR mechanism and are qualitatively consistent with the
-README-level MSE ratio \(1.638\). Mechanistically, target-poor training can still optimize
-population prediction in expectation, but it gives weaker per-episode pressure to expose and route
-a stable target-rich label-response operator. The \(d_x=40\) run is therefore a regime-mismatch
-stress test: the right source subspace is largely present, especially in the raw final state, while
-the learned readout/routing remains imperfect.
-
-This motivates the sequence-length prescription above. If the goal is to train and certify a true
-prediction-relevant KRR mechanism in a given regime, choose \(n_{\mathrm{ctx}}\) and
-\(n_{\mathrm{tgt}}\) so that
-\[
-\min\{n_{\mathrm{ctx}},n_{\mathrm{tgt}},r_*(n_{\mathrm{ctx}};0.05)\}
-=r_*(n_{\mathrm{ctx}};0.05)
-\]
-during training as well as diagnosis. Target-rich diagnostics alone can reveal the mismatch;
-target-rich training is the direct way to put pressure on the model to learn the full visible map.
-
-\subsection{RBF Kernel Experiment: Prediction-Risk Rank and Availability}
-
-The RBF experiment tests whether the same operator picture survives when the prediction-risk rank is
-no longer tied to the input dimension. The checkpoint is trained on labels from an RBF Gaussian process
-with lengthscale \(3.0\), signal variance \(1.0\), and noise variance \(\sigma^2=0.1\). On held-out RBF
-tasks the model is close to KRR: at the end of training the prediction MSE is within about
-\(1\)--\(3\%\) of exact KRR, and the model--KRR prediction discrepancy is around \(10^{-3}\). The
-important change is that the rank is now set by prediction risk:
-\[
-r_T
-=
-\min\left\{r:\sum_{i>r}s_i^2\le 0.05\,R_{\mathrm{KRR}}\right\}.
-\]
-This number is computed from the KRR geometry before looking at activations. It asks how many modes
-are needed so that discarding the rest would add at most five percent of the KRR posterior
-prediction risk. For the clean \(128\times128\) RBF checkpoint, this gives
-\[
-r_T\approx24.75.
-\]
-
-\begin{table}[htbp]
-\centering
-\caption{RBF \(128\times128\) diagnostics from the regenerated final suite. The layerwise response
-basis is the Experiment 2 availability basis.}
-\scriptsize
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{0.9}
-\begin{tabular}{lrrl}
-\toprule
-Diagnostic & Dimensional scale & Error scale & Reading\\
-\midrule
-Model response & \(r_T=24.75\) & \(E(F,T)=0.0306\) & near-KRR behavior\\
-Model excess risk & \(r_T=24.75\) & \(\rho(F)=0.0203\) & below 5\% risk tolerance\\
-Final response span & selected rank \(24.9\) & \(\rho(T_Q)=0.048\) & sufficient at \(r_T\)\\
-Final raw span & selected rank \(26.0\) & \(\rho(T_Q)=0.054\) & near sufficient\\
-\bottomrule
-\end{tabular}
-\renewcommand{\arraystretch}{1}
-\end{table}
-
-The table gives the clean nonlinear conclusion. The model itself is close to KRR, and the final
-response span contains a rank-\(25\)-scale subspace whose induced reduced KRR
-operator reaches the predeclared five-percent prediction-risk tolerance. This is why taking the
-final hidden representation and allowing the selected rank to match \(r_T\) recovers the operation:
-the directions are present, but they are distributed inside a larger response span and must be
-oriented by KRR relevance.
-
 We also reran the revised layerwise diagnostic on the older fixed-\(\ell=3\) RBF checkpoint
-\path{rbf_fixed_l3_original.pt}, at \(n_{\mathrm{ctx}}=47\). This checkpoint was originally
-diagnosed in a target-restricted setting, so we evaluate the same model at
-\(n_{\mathrm{tgt}}=16,64,128\). This separates the intrinsic task rank \(r_T\) from the
-representation-dependent final response rank \(k_L^{5\%}\).
-
-\begin{table}[htbp]
-\centering
-\caption{Revised Experiment 2 on the older \(n_{\mathrm{ctx}}=47\) fixed-\(\ell=3\) RBF checkpoint.
-Here \(r_T\) is the intrinsic prediction-risk rank of the finite KRR task, while \(k_L^{5\%}\) is
-the number of final response-span directions needed to reach \(\rho_G\le0.05\).}
-\scriptsize
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{0.9}
-\begin{tabular}{rrrrrr}
-\toprule
-\(n_{\mathrm{tgt}}\) & \(r_T\) & \(k_L^{5\%}\) & \(\rho_G(T_{Q_{L,r_T}})\) & best \(\rho_G\) & \(E(F,T)\)\\
-\midrule
-16  & 10.6 & 11.1 & 0.049 & 0.009 & 0.067\\
-64  & 17.1 & 17.8 & 0.053 & 0.015 & 0.074\\
-128 & 18.3 & 19.3 & 0.057 & 0.021 & 0.097\\
-\bottomrule
-\end{tabular}
-\renewcommand{\arraystretch}{1}
-\end{table}
-
-The table refines the earlier target-restriction story. The older checkpoint does not simply lack
-the larger KRR-relevant directions: \(k_L^{5\%}\) tracks \(r_T\) closely even as the target set grows.
-Thus the final response representation contains a near-sufficient KRR subspace. What degrades is
-the realized model response: \(E(F,T)\) grows as the diagnostic exposes a richer target-visible
-operator. The failure mode is therefore readout/routing alignment, not absence of a KRR subspace.
-The \(128\times128\) checkpoint remains the cleaner nonlinear result because training and diagnosis
-are matched in the richer regime and behavior, final-state availability, and prediction-risk rank
-are aligned in the same geometry.
-
-The primary object in Experiment 2 is therefore the layerwise response span, ordered by
-KRR-targeted energy and evaluated by prediction-risk excess. Under that definition:
-\[
-\text{RBF behavior and final-state availability succeed,}
-\]
-and the older \(n_{\mathrm{ctx}}=47\) checkpoint shows a softer failure mode: the response
-representation remains near-sufficient, but the realized model response degrades as the target set
-is made richer.
+\path{rbf_fixed_l3_original.pt}, at \(n_{\mathrm{ctx}}=47\) and
+\(n_{\mathrm{tgt}}=16,64,128\). As \(n_{\mathrm{tgt}}\) grows, \(r_T\) increases
+\(10.6\to17.1\to18.3\), and the final rank-to-five-percent tracks it
+\(11.1\to17.8\to19.3\). But the realized model response degrades
+\(E(F,T)=0.067\to0.074\to0.097\). This older checkpoint therefore shows the same softer failure
+mode as \(d_x=40\): a near-sufficient subspace can be present while the model's realized
+readout/routing is not as clean as in the matched \(128\times128\) RBF regime.
 
 \section{Experiment 3: Causal Direction Removal}
 
-The third experiment asks whether the task-important directions inside \(Q\) are actually used by
-the transformer. This is necessary because decodability and sufficiency do not by themselves prove
-causal use.
+The last step tests causal use. Experiments 1 and 2 show that a KRR-sufficient subspace is present;
+that still does not prove that the transformer relies on it. Experiment 3 therefore takes a
+certified raw final basis \(Q=[q_1,\ldots,q_r]\), ranks its directions by KRR task leverage, and
+removes selected directions from the context-token residual stream before rolling the remaining
+layers forward.
 
-Start with a raw final basis \(Q=[q_1,\ldots,q_r]\). For each direction, form \(Q_{-j}\) by removing
-that column. The point of the leverage score is to rank directions by their importance to the
-KRR-constrained reduced operator, not by activation magnitude. A direction should count as
-task-important if deleting it changes \(T_Q\)'s response on task-label probes. Define
+The leverage score ranks directions by their effect on the KRR-constrained reduced operator, not by
+activation magnitude. For \(Q_{-j}\), the basis with \(q_j\) removed, define
 \[
 \Lambda_j^{\mathrm{red}}(U)
 :=
@@ -1301,11 +952,8 @@ task-important if deleting it changes \(T_Q\)'s response on task-label probes. D
 }
 \right)^{1/2}.
 \]
-A direction has high task leverage if this score is large on task-label probes. This ranking is what
-connects the causal intervention to the operator certificate: the surgery removes directions that
-\(T_Q\) itself says are important for task-distributed ridge responses.
-
-The intervention removes selected directions from the context-token residual stream:
+High-leverage directions are the ones whose deletion most changes the reduced KRR response on
+task-label probes. The intervention removes selected directions at residual state \(s\):
 \[
 H_s^{\mathrm{ctx}}
 \longmapsto
@@ -1313,9 +961,9 @@ H_s^{\mathrm{ctx}}
 -
 \sum_{j\in J}q_jq_j^\top A H_s^{\mathrm{ctx}},
 \]
-then rolls the remaining layers forward. Matched controls remove low-task-leverage directions from
-the same basis, high-isotropic-but-low-task directions, high-activation-variance-but-low-task
-directions, and random subsets.
+and compares against matched controls: low-task-leverage directions from the same basis,
+high-isotropic-but-low-task directions, high-activation-variance-but-low-task directions, and random
+subsets.
 
 Before surgery, the checkpoint is in the task-local certificate regime:
 \[
@@ -1329,76 +977,62 @@ The same episodes retain the off-distribution drift seen in Experiment 1:
 \[
 E_{\mathrm{iso}}(F,T)=0.266.
 \]
-At residual state \(s=1\), removing a single high-task-leverage direction causes prediction drift
-\(4.68\), KRR-error inflation \(649\times\), and task-response damage \(41.59\). Removing a
-single low-task-leverage direction from the same basis is nearly inert: prediction drift
-\(9.8\cdot10^{-4}\), KRR-error inflation \(1.03\times\), and task-response damage \(0.0024\).
-The layer sweep localizes the effect: high-task surgery is most damaging at early residual states,
-before later attention has routed the relevant context information into target tokens, and
-context-only surgery after the final layer is a no-op. At \(s=1\), aggregate task leverage and task
-response damage are strongly related across matched non-random controls (log--log Pearson 0.91,
-Spearman 0.87).
 
-The complement ablation sharpens the mediation claim. At the same residual state \(s=1\), keeping
-only the \(A\)-projection of context residual states onto \(Q\),
-\[
-H_s^{\mathrm{ctx}}\mapsto QQ^\top A H_s^{\mathrm{ctx}},
-\]
-nearly preserves the task-local response over 8 episodes:
-\[
-E_{\mathrm{task}}(F,T)=0.01836,
-\qquad
-\text{response damage}=0.01634.
-\]
-Removing \(Q\) instead,
-\[
-H_s^{\mathrm{ctx}}\mapsto H_s^{\mathrm{ctx}}-QQ^\top A H_s^{\mathrm{ctx}},
-\]
-destroys the response:
-\[
-E_{\mathrm{task}}(F,T)=106.46,
-\qquad
-E_{\mathrm{task}}(F,T_Q)=106.46,
-\qquad
-\text{response damage}=106.46.
-\]
-So the complement of \(Q\) is largely dispensable for the task-local KRR response in this
-intervention family, while \(Q\) itself is necessary.
-
-\begin{figure}[htbp]
+\begin{table}[htbp]
 \centering
-\includegraphics[width=0.82\linewidth]{../experiments/experiment_3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
-\caption{Experiment 3: whole-subspace complement ablation at residual state \(s=1\). Left panel:
-task finite-difference response error \(E_{\mathrm{task}}(F,T)\). Right panel: relative KRR
-prediction error \(\|F_{\mathrm{surg}}(y)-Ty\|_2/\|Ty\|_2\). Keeping only the \(Q\)-projection
-nearly preserves both quantities; removing \(Q\) destroys both.}
-\end{figure}
+\caption{Experiment 3 causal-use summary. Direction removals are at residual state \(s=1\).}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.32\linewidth}p{0.30\linewidth}p{0.30\linewidth}@{}}
+\toprule
+Intervention & Result & Reading\\
+\midrule
+No surgery &
+\(E_{\mathrm{task}}(F,T)=0.00926\), \(\rho_G(T_Q)=0.00149\) &
+The starting episodes satisfy the same task-local certificate.\\
+Remove one high-task-leverage direction &
+prediction drift \(4.68\), response damage \(41.59\), KRR-error inflation \(649\times\) &
+Directions selected by KRR leverage are causally important.\\
+Remove one low-task-leverage direction &
+prediction drift \(9.8\times10^{-4}\), response damage \(0.0024\), inflation \(1.03\times\) &
+Removing same-basis directions with low task leverage is nearly inert.\\
+Keep only the \(Q\)-projection &
+\(E_{\mathrm{task}}(F,T)=0.01836\), response damage \(0.01634\) &
+The certified subspace nearly preserves the task-local response by itself.\\
+Remove \(Q\) &
+\(E_{\mathrm{task}}(F,T)=106.46\), response damage \(106.46\) &
+The complement does not carry the task-local KRR response.\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The layer sweep adds localization: high-task surgery is most damaging at early residual states,
+before later attention has routed the relevant context information into target tokens, while
+context-only surgery after the final layer is a no-op. At \(s=1\), aggregate task leverage and task
+response damage are strongly related across matched non-random controls (log--log Pearson \(0.91\),
+Spearman \(0.87\)).
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.78\linewidth]{../experiments/experiment_3_causal_surgery/results/experiment_3_key_surgery.pdf}
-\caption{Experiment 3: causal effect of task-important activation directions. The plotted metric is
-task finite-difference response damage
-\(\bigl(\sum_j\|D_\varepsilon F_{\mathrm{surg}}(y)[u_j]-D_\varepsilon F_{\mathrm{base}}(y)[u_j]\|^2/
-(\sum_j\|Tu_j\|^2+\eta_{\mathrm{num}})\bigr)^{1/2}\), for task probes \(u_j\sim\mathcal{N}(0,A)\).
-High task-leverage directions produce orders-of-magnitude larger damage than low-task-leverage
-directions from the same activation basis.}
+\caption{Experiment 3: selective causal effect of task-important activation directions. The plotted
+metric is task finite-difference response damage. High task-leverage removals cause orders of
+magnitude larger damage than matched low-task-leverage controls.}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.78\linewidth]{../experiments/experiment_3_causal_surgery/results/experiment_3_key_surgery_point_error.pdf}
-\caption{Experiment 3: the same surgery plot, but measuring relative KRR prediction error
-\(\|F_{\mathrm{surg}}(y)-Ty\|_2/\|Ty\|_2\) instead of finite-difference response damage. High
-task-leverage removals also destroy the model's prediction, while low-task-leverage removals are
-nearly inert.}
+\includegraphics[width=0.82\linewidth]{../experiments/experiment_3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
+\caption{Experiment 3: whole-subspace complement ablation at residual state \(s=1\). Keeping only
+the \(Q\)-projection nearly preserves the task-local response; removing \(Q\) destroys it.}
 \end{figure}
 
 \FloatBarrier
 
-This supports the causal-use claim in an operational sense. The directions that the reduced KRR
-operator identifies as task-important are not merely decodable; removing them selectively damages
-the transformer's task-local response, while matched controls do not.
+Together, the selective removals and complement ablation support the causal-use claim in an
+operational sense. The directions that the reduced KRR operator identifies as task-important are not
+merely decodable; preserving them largely preserves the task-local response, and removing them
+selectively destroys it.
 
 \section{What Is Justified}
 
