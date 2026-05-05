@@ -1,5 +1,0 @@
-probe_kind,eps,n,additivity_defect_mean,additivity_defect_std,eps_mean,eps_std
-isotropic,0.001,1,0.0016106059186337541,0.0,0.001,0.0
-isotropic,0.01,1,0.006012909815907245,0.0,0.01,0.0
-label,0.001,1,0.001195436112041443,0.0,0.001,0.0
-label,0.01,1,0.0022749864270464313,0.0,0.01,0.0

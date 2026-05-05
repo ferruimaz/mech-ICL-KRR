@@ -1,2 +1,0 @@
-model_key,n,krr_pred_norm_mean,krr_pred_norm_std,model_pred_norm_mean,model_pred_norm_std,mse_krr_true_mean,mse_krr_true_std,mse_model_krr_mean,mse_model_krr_std,mse_model_true_mean,mse_model_true_std,ratio_model_krr_mean,ratio_model_krr_std,rel_model_krr_norm_mean,rel_model_krr_norm_std,rel_model_true_norm_mean,rel_model_true_norm_std
-dx40,1,2.2206305183728947,0.0,2.1406336522944005,0.0,0.08985409267328093,0.0,0.003691215446525576,0.0,0.07441671062274599,0.0,0.828195003797246,0.0,0.061177735201141746,0.0,0.27133230315887613,0.0

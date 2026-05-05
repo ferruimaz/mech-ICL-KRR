@@ -1,0 +1,37 @@
+Experiment 1: Operator-Galerkin Certificate
+
+model=standard, episodes=4, eps=0.001, tau_sv=0.001, r_max=9
+
+Predictive task check: MSE(model,true)=0.0161, MSE(KRR,true)=0.0148, MSE ratio=1.188, rel(model,KRR)=0.01045
+
+Galerkin vs actLR:
+  isotropic/raw: TQ model-fit=0.2914, actLR model-fit=0.2008, TQ rho=0.002793, actLR rho=0.1604
+  isotropic/response: TQ model-fit=0.3193, actLR model-fit=0.2418, TQ rho=0.0175, actLR rho=0.317
+  label/raw: TQ model-fit=0.01195, actLR model-fit=0.007291, TQ rho=0.002793, actLR rho=0.1604
+  label/response: TQ model-fit=0.01239, actLR model-fit=0.01173, TQ rho=0.0175, actLR rho=0.317
+
+Probe interpolation endpoints:
+  raw, lambda=0: E_model_to_T=0.01327, E_model_to_TQ=0.01311, E_TQ_to_T=0.001444
+  raw, lambda=1: E_model_to_T=0.2885, E_model_to_TQ=0.2795, E_TQ_to_T=0.05935
+  response, lambda=0: E_model_to_T=0.01327, E_model_to_TQ=0.01406, E_TQ_to_T=0.003569
+  response, lambda=1: E_model_to_T=0.2885, E_model_to_TQ=0.3244, E_TQ_to_T=0.123
+
+Key held-out means:
+  isotropic/raw: rank=8.50, E_model_to_op=0.2914, rho=0.002793, X_use=0.9207, X_sub=0.9971
+  isotropic/raw_actLR: rank=8.50, E_model_to_op=0.2008, rho=0.1604, X_use=0.962, X_sub=0.9256
+  isotropic/raw_random: rank=8.50, E_model_to_op=3.022, rho=7.301, X_use=-7.669, X_sub=-8.742
+  isotropic/resp: rank=9.00, E_model_to_op=0.3193, rho=0.0175, X_use=0.9062, X_sub=0.9825
+  isotropic/resp_actLR: rank=9.00, E_model_to_op=0.2418, rho=0.317, X_use=0.9464, X_sub=0.9105
+  isotropic/resp_random: rank=9.00, E_model_to_op=3.279, rho=12.36, X_use=-9.519, X_sub=-10.72
+  label/raw: rank=8.50, E_model_to_op=0.01195, rho=0.002793, X_use=0.9998, X_sub=1
+  label/raw_actLR: rank=8.50, E_model_to_op=0.007291, rho=0.1604, X_use=0.9999, X_sub=0.9998
+  label/raw_random: rank=8.50, E_model_to_op=0.1184, rho=15.32, X_use=0.9829, X_sub=0.9832
+  label/resp: rank=9.00, E_model_to_op=0.01239, rho=0.0175, X_use=0.9998, X_sub=1
+  label/resp_actLR: rank=9.00, E_model_to_op=0.01173, rho=0.317, X_use=0.9998, X_sub=0.9997
+  label/resp_random: rank=9.00, E_model_to_op=0.09554, rho=11.66, X_use=0.9899, X_sub=0.9898
+
+Additivity defects:
+  isotropic, eps=0.001: 0.003912
+  isotropic, eps=0.01: 0.002841
+  label, eps=0.001: 0.0003962
+  label, eps=0.01: 0.0003433

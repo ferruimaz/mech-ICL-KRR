@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+
+# OS / local build noise
+.DS_Store
+.mpl-cache/
+.pytest_cache/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.synctex.gz

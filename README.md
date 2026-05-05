@@ -2,29 +2,32 @@
 
 Code for the paper **"Operator-Level Evidence for In-Context Kernel Ridge Regression"**.
 
-We show that a transformer trained on in-context linear regression implements kernel ridge regression (KRR) in a mechanistically precise sense: its final-layer activations span a low-dimensional frozen subspace that induces a KRR-faithful linear operator, and the high-leverage directions of that operator are causally used by the model.
+The final repository is organized around three paper experiments: a final-state operator
+certificate, a prediction-risk rank and layerwise availability diagnostic, and a causal direction
+removal test.
 
----
+## Repository Structure
 
-## Repository structure
-
-```
-src/                          Core implementation
-  model.py                    ICL transformer (residual-only, no LayerNorm)
-  data.py                     Episode generation with spectral curriculum
-  train.py                    Training loop and CLI
+```text
+src/
+  model.py                    ICL transformer
+  data.py                     Linear episode generation
+  train.py                    Training CLI
+  experiment_utils/           Shared final experiment utilities
 
 experiments/
-  shared/support.py           Shared utilities (model loading, kernels, diagnostics)
-  exp1_operator_certificate/  Exp 1 – operator-Galerkin certificate
-  exp2_budget_closure/        Exp 2 – native budget and rank threshold
-  exp3_causal_surgery/        Exp 3 – causal leverage intervention
+  experiment_1_operator_certificate/
+  experiment_2_rank_emergence/
+  experiment_3_causal_surgery/
+  run_final_suite.py
 
-checkpoints/                  Trained model weights
-environment.yml               Conda environment (Python 3.13, PyTorch ≥ 2.7)
+checkpoints/final/
+  manifest.json               Final checkpoint inventory and SHA256 hashes
+
+paper/
+  operator_exposition_structured_rewrite.tex
+  operator_exposition_structured_rewrite.pdf
 ```
-
----
 
 ## Setup
 
@@ -33,50 +36,33 @@ conda env create -f environment.yml
 conda activate mech-icl-krr
 ```
 
----
+The regenerated final runs in this cleanup used `/opt/homebrew/bin/python3` on CPU.
 
-## Training
+## Final Experiments
+
+Run the full final suite from the repo root:
 
 ```bash
-python src/train.py --d_x 5 --n_layers 8 --train_steps 10000 --save_path checkpoints/model_L8.pt
+python -m experiments.run_final_suite --mode full --clean --device cpu
 ```
 
-Key options: `--d_x`, `--n_layers`, `--n_heads`, `--d_model`, `--train_steps`.
+For a quick wiring check:
 
----
-
-## Experiments
-
-Run from the repo root. Each experiment writes results (CSV, PNG, TXT) to its own `results/` subdirectory.
-
-**Experiment 1 – Operator-Galerkin certificate**
 ```bash
-python -m experiments.exp1_operator_certificate.run
+python -m experiments.run_final_suite --mode smoke --clean --device cpu
 ```
 
-**Experiment 2 – Native budget and rank threshold**
-```bash
-python -m experiments.exp2_budget_closure.run --suite
-```
+The final suite writes results under the three experiment folders:
 
-**Experiment 3 – Galerkin-leverage causal surgery**
-```bash
-python -m experiments.exp3_causal_surgery.run \
-  --checkpoint model_L8.pt \
-  --d-x 5 --d-model 128 --n-layers 8 --n-heads 4 \
-  --episodes 32 --n-ctx 47 --n-tgt 16 \
-  --n-causal 32 --k-remove-list 1,2,4 --layer-rule sweep
+```text
+experiments/experiment_1_operator_certificate/results/
+experiments/experiment_2_rank_emergence/results/
+experiments/experiment_3_causal_surgery/results/
+experiments/experiment_3_causal_surgery/results_complement_ablation/
 ```
-
----
 
 ## Checkpoints
 
-| File | Config | Purpose |
-|---|---|---|
-| `model_L8.pt` | d_x=5, D=128, L=8, H=4 | Main model |
-| `model_w512_L8_dx20_h16_n200.pt` | d_x=20, D=512, L=8, H=16 | Wide model |
-| `model_gp_mixed.pt` | d_x=5, D=128, L=8, H=4 | GP-kernel trained |
-| `model_L{2,4,6,12}.pt` | depth sweep | Exp 1 & 2 depth ablation |
-| `model_H{1,2,8}.pt` | head sweep | Exp 2 head ablation |
-| `model_dx{3,5,8,10,15}.pt` | dimension sweep | Exp 2 rank threshold |
+Use `checkpoints/final/manifest.json` as the source of truth for the final checkpoint set. It records
+the original source filename, architecture, training regime, SHA256 hash, and experiment use for
+each final checkpoint.

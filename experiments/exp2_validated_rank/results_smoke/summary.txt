@@ -1,7 +1,0 @@
-Experiment 2 Validated Native Rank
-
-episodes=1, n_build=3, n_val=4, n_eval=4, gamma=0.95, min_explainable_frac=0.001
-n_ctx=47, n_tgt=16, sigma2=0.1, tau_sv=0.001, tau_subspace=1e-09
-
-name   probe L   H   B_nat    dim    rT    dim/rT  mean_s  E(TQ,T)    E(F,TQ)    E(F,T)     valClos 
-dx5    task    8   4    450.0    5.0   5.0   1.000   14.33    0.00000    0.00721    0.00721  0.40424

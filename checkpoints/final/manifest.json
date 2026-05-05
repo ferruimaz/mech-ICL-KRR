@@ -1,0 +1,164 @@
+{
+  "created_for": "final three-experiment paper suite",
+  "checkpoints": [
+    {
+      "filename": "linear_baseline_dx5_L8.pt",
+      "original": "checkpoints/model_L8.pt",
+      "architecture": {
+        "d_x": 5,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL baseline used for the final operator certificate and causal surgery experiments",
+      "sha256": "2dcc367c97a90b7cfb0dbe43548358420dabc220f4fa2e87bc71b17046fe1c0e",
+      "experiment_use": [
+        "experiment_1_operator_certificate",
+        "experiment_3_causal_surgery"
+      ]
+    },
+    {
+      "filename": "linear_sweep_dx3.pt",
+      "original": "checkpoints/model_dx3.pt",
+      "architecture": {
+        "d_x": 3,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL small-dimension sweep",
+      "sha256": "6fc4a44a367d615e0344644a513fb3edc3365b375fb769d8e4a013db87e47d00",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "linear_sweep_dx5.pt",
+      "original": "checkpoints/model_dx5.pt",
+      "architecture": {
+        "d_x": 5,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL small-dimension sweep",
+      "sha256": "c74e67d462b298b714fe51094e6587d83909eca5b7ef0467f1736699deb0488b",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "linear_sweep_dx8.pt",
+      "original": "checkpoints/model_dx8.pt",
+      "architecture": {
+        "d_x": 8,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL small-dimension sweep",
+      "sha256": "32328a37e1f21ca734cc261c226eec32c3962bdec7129b9640fa4b986aebd036",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "linear_sweep_dx10.pt",
+      "original": "checkpoints/model_dx10.pt",
+      "architecture": {
+        "d_x": 10,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL small-dimension sweep",
+      "sha256": "b9111b877053c9ef7c2465a782725bcb8934da0dcfdfb1b2a4ee02959e5006f2",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "linear_sweep_dx15.pt",
+      "original": "checkpoints/model_dx15.pt",
+      "architecture": {
+        "d_x": 15,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "linear ridge-regression ICL small-dimension sweep",
+      "sha256": "cbb7d3836838c491c22148df508808d356290ebd4720eff88a5f7e63ae460ab3",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "rbf_fixed_l3_original.pt",
+      "original": "checkpoints/model_rbf_fixed_l3.pt",
+      "architecture": {
+        "d_x": 5,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "historical fixed-RBF checkpoint, lengthscale 3.0, signal variance 1.0, sigma2 0.1, evaluated at n_ctx=47 and n_tgt in {16,64,128}",
+      "sha256": "764cf92d2964dcc8df01aa2bd09d2fd852d38d17c774dfc419c358e322d593d3",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "rbf_fixed_l3_nctx128_ntgt128_seed42.pt",
+      "original": "experiments/rbf_elbow_training/results/nctx128_ntgt128_scratch_seed42/checkpoint_final.pt",
+      "architecture": {
+        "d_x": 5,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false
+      },
+      "training_regime": "fixed-RBF scratch checkpoint, lengthscale 3.0, signal variance 1.0, sigma2 0.1, n_ctx=128, train_n_tgt=128, train_steps=20000, batch_size=8, seed=42",
+      "sha256": "3e0aec68e01252a96fecd4713317287c49944883f994ac1d294fae9f9972ad22",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    },
+    {
+      "filename": "dx40_tau16_s122.pt",
+      "original": "dx40_scale_aware_gated_s122/minimal_scale_canonical_single_dx40_tau16_am2p0_2p0_inv_rank_bs16_ga1_150000_s122.best.pt",
+      "architecture": {
+        "d_x": 40,
+        "d_model": 128,
+        "n_layers": 8,
+        "n_heads": 4,
+        "ffn_mult": 2,
+        "layer_norm": false,
+        "scale_canonical": true,
+        "scale_y": true,
+        "scale_controller": "layer_gates",
+        "mask_tgt_tgt": true
+      },
+      "training_regime": "linear ridge-regression ICL with scale_tau_direct minimal spectra, tau in [0.001,16], log10(lambda_1) in [-2,2], n_tgt=8, n_ctx=round(gamma*tau) with gamma in {4,8,12}, train_steps=150000, seed=122",
+      "sha256": "97e49656e65ea72faf46d8b548d26f82c552500cb8c60903aa4c920d5105c334",
+      "experiment_use": [
+        "experiment_2_rank_emergence"
+      ]
+    }
+  ]
+}
+
