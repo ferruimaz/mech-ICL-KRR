@@ -1,0 +1,28 @@
+{
+  "args": {
+    "checkpoint": "model_rbf_fixed_l3.pt",
+    "curve_r_max": 16,
+    "d_model": 128,
+    "d_x": 5,
+    "device": "cpu",
+    "episodes": 16,
+    "eps": 0.001,
+    "kernel_family": "rbf",
+    "kernel_jitter": 1e-05,
+    "kernel_lengthscale": 3.0,
+    "kernel_signal_var": 1.0,
+    "n_build": 32,
+    "n_ctx": 47,
+    "n_eval": 32,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 16,
+    "name": "rbf_l3",
+    "rank_tau": 0.01,
+    "results_dir": "experiments/exp2_validated_rank/results_rbf_l3_final_basis_ep16",
+    "seed": 42,
+    "sigma2": 0.1,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}

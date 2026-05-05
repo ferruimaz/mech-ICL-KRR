@@ -1,0 +1,30 @@
+{
+  "args": {
+    "basis_kinds": "response,raw,combined",
+    "candidate_rank": 128,
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/rbf_elbow_training/results/nctx128_ntgt128_scratch_seed42/checkpoint_final.pt",
+    "curve_r_max": 64,
+    "d_model": 128,
+    "d_x": 5,
+    "device": "cpu",
+    "episodes": 8,
+    "eps": 0.001,
+    "excess_risk_frac": 0.05,
+    "kernel_family": "rbf",
+    "kernel_jitter": 1e-05,
+    "kernel_lengthscale": 3.0,
+    "kernel_signal_var": 1.0,
+    "n_build": 16,
+    "n_ctx": 128,
+    "n_eval": 16,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 128,
+    "name": "rbf_elbow_scratch_nctx128_ntgt128",
+    "rank_tau": 0.01,
+    "results_dir": "experiments/exp2_layerwise_sufficiency/results_rbf128_ntgt128_seed42_tau1e4",
+    "seed": 42,
+    "sigma2": 0.1,
+    "tau_sv": 0.0001
+  }
+}

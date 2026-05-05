@@ -1,0 +1,30 @@
+{
+  "args": {
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122/minimal_scale_canonical_single_dx40_tau16_am2p0_2p0_inv_rank_bs16_ga1_150000_s122.best.pt",
+    "d_model": 128,
+    "d_x": 40,
+    "device": "cpu",
+    "episodes": 1,
+    "eps": 0.001,
+    "k_remove": null,
+    "k_remove_list": [
+      1,
+      2,
+      4
+    ],
+    "layer_rule": "final",
+    "n_causal": 32,
+    "n_ctx": 47,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 16,
+    "probe_kind": "both",
+    "results_dir": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122/smoke_results/results_exp3_causal_surgery",
+    "rmax": 12,
+    "seed": 42,
+    "sigma2": 0.1,
+    "tau_sv": 0.001
+  },
+  "checkpoint_dir": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints",
+  "device": "cpu"
+}

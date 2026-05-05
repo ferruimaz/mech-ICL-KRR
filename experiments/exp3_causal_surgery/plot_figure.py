@@ -63,7 +63,14 @@ def summarize(vals: Iterable[float]) -> Tuple[float, float, float]:
     return median(vv), quantile(vv, 0.25), quantile(vv, 0.75)
 
 
-def make_plot(records_csv: Path, out_path: Path, state_idx: int) -> None:
+def make_plot(
+    records_csv: Path,
+    out_path: Path,
+    state_idx: int,
+    metric: str = "surg_E_task_damage",
+    ylabel: str = "task response damage",
+    ylim: Tuple[float, float] = (7e-4, 1.5e2),
+) -> None:
     rows = read_rows(records_csv)
     colors = {1: "#4C78A8", 2: "#D55E00", 4: "#333333"}
     offsets = {1: -0.18, 2: 0.0, 4: 0.18}
@@ -90,7 +97,7 @@ def make_plot(records_csv: Path, out_path: Path, state_idx: int) -> None:
         yerr_high: List[float] = []
         for i, control in enumerate(CONTROL_ORDER):
             vals = [
-                float(r["surg_E_task_damage"])
+                float(r[metric])
                 for r in rows
                 if r["control"] == control
                 and int(float(r["k_remove"])) == k
@@ -119,11 +126,11 @@ def make_plot(records_csv: Path, out_path: Path, state_idx: int) -> None:
 
     ax.axvspan(3.58, 4.42, color="#D55E00", alpha=0.08, zorder=0)
     ax.set_yscale("log")
-    ax.set_ylim(7e-4, 1.5e2)
+    ax.set_ylim(*ylim)
     ax.set_xlim(-0.55, len(CONTROL_ORDER) - 0.45)
     ax.set_xticks(range(len(CONTROL_ORDER)))
     ax.set_xticklabels([CONTROL_LABELS[c] for c in CONTROL_ORDER])
-    ax.set_ylabel("task response damage")
+    ax.set_ylabel(ylabel)
     ax.set_title(r"Early surgery at residual state $s=1$", loc="left")
     ax.yaxis.grid(True, which="major", color="#dddddd", linewidth=0.7)
     ax.yaxis.grid(True, which="minor", color="#eeeeee", linewidth=0.45)
@@ -158,9 +165,25 @@ def main() -> None:
         / "experiment_3_key_surgery.png",
     )
     parser.add_argument("--state-idx", type=int, default=1)
+    parser.add_argument(
+        "--metric",
+        choices=("task_damage", "point_error"),
+        default="task_damage",
+        help="Plot task finite-difference response damage or relative KRR prediction error.",
+    )
     args = parser.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    make_plot(args.records_csv, args.out, args.state_idx)
+    if args.metric == "point_error":
+        make_plot(
+            args.records_csv,
+            args.out,
+            args.state_idx,
+            metric="surg_pointwise_F_T",
+            ylabel="relative KRR pred. error",
+            ylim=(3e-3, 1e4),
+        )
+    else:
+        make_plot(args.records_csv, args.out, args.state_idx)
     print(args.out)
     print(args.out.with_suffix(".pdf"))
 

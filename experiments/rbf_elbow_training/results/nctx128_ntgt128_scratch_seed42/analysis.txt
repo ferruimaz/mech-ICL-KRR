@@ -1,0 +1,29 @@
+RBF elbow retraining analysis
+
+Training endpoint
+  n_tgt=128: MSE=0.03744, KRR_MSE=0.03707, MSE/KRR=1.014, pred_to_KRR=0.00076
+  n_tgt=256: MSE=0.03769, KRR_MSE=0.03641, MSE/KRR=1.034, pred_to_KRR=0.00109
+
+Final-state basis diagnostic, n_tgt=128
+  mean task-visible rank r_T=47.12; nearest reported rank=47
+  raw      rank=16: E(TQ,T)=0.17413, E(F,TQ)=0.16834, E(F,T)=0.02706
+  raw      rank=47: E(TQ,T)=0.03492, E(F,TQ)=0.04379, E(F,T)=0.02706
+  response rank=16: E(TQ,T)=0.18411, E(F,TQ)=0.18003, E(F,T)=0.02706
+  response rank=47: E(TQ,T)=0.05890, E(F,TQ)=0.06207, E(F,T)=0.02706
+
+Causal validated-rank diagnostic, n_tgt=128
+  dim=22.88, r_T=46.62, dim/r_T=0.490
+  E(TQ,T)=0.17226, E(F,TQ)=0.16945, E(F,T)=0.02884, MSE ratio=1.052
+
+Final-state basis diagnostic, n_tgt=256
+  mean task-visible rank r_T=51.25; nearest reported rank=51
+  raw      rank=16: E(TQ,T)=0.17297, E(F,TQ)=0.16581, E(F,T)=0.03422
+  raw      rank=47: E(TQ,T)=0.03808, E(F,TQ)=0.04884, E(F,T)=0.03422
+  raw      rank=51: E(TQ,T)=0.03309, E(F,TQ)=0.04602, E(F,T)=0.03422
+  response rank=16: E(TQ,T)=0.18205, E(F,TQ)=0.17603, E(F,T)=0.03422
+  response rank=47: E(TQ,T)=0.06183, E(F,TQ)=0.06549, E(F,T)=0.03422
+  response rank=51: E(TQ,T)=0.05294, E(F,TQ)=0.05870, E(F,T)=0.03422
+
+Causal validated-rank diagnostic, n_tgt=256
+  dim=23.00, r_T=50.12, dim/r_T=0.459
+  E(TQ,T)=0.16480, E(F,TQ)=0.16076, E(F,T)=0.04098, MSE ratio=1.007

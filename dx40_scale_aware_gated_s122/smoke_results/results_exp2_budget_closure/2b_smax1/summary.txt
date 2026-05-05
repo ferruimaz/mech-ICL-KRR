@@ -1,0 +1,7 @@
+Experiment 2: Native Budget and Closure
+
+episodes=1, n_build=8, n_eval=16, eps=0.001
+n_ctx=47, n_tgt=16, sigma2=0.1, smax=1, tau_sv=0.001
+
+name   probe L   H   B_nat    dim    E(TQ,T)    E(F,TQ)    E(F,T)     MSE/KRR   maxClos 
+dx40   task    8   4     45.0   34.0    0.27653    0.32709    0.18423     1.002  0.49130

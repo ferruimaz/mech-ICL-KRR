@@ -104,102 +104,93 @@ When the geometry is clear, write \(T\) and \(F\). The central comparison is not
 \(F(y)\approx Ty\) for one \(y\). It is whether the local response of \(F\) to label perturbations
 matches the operator \(T\).
 
-\section{Context-Label Directions and Local Operators}
+\section{Context-Label Directions, Local Operators, and Additivity}
 
 A context-label direction is a vector
 \[
 u\in\R^{n_{\mathrm{ctx}}}.
 \]
-It specifies how the labels on the context examples are perturbed:
+It assigns one scalar to each context example. Perturbing in direction \(u\) means changing labels as
 \[
 y+\varepsilon u
 =
 (y_1+\varepsilon u_1,\ldots,y_{n_{\mathrm{ctx}}}+\varepsilon u_{n_{\mathrm{ctx}}}).
 \]
-This direction lives in label space over context positions. It is not a direction in feature space, and
-it is not a direction in target space. If there are 47 context examples, then these directions live in
-\(\R^{47}\).
+This is a direction over context positions. It is not a direction in input-feature space and not a
+direction in target space. If there are 47 context examples, these directions live in \(\R^{47}\).
 
-The ridge map \(T\) is linear in \(y\). The transformer map \(F\), even with \(G\) fixed, can be
-nonlinear in the labels. Its local operator at the observed label vector is the first-order
-label-response map. If \(F\) is differentiable, this is the Jacobian
+Pointwise agreement checks only the value of two maps at one label vector:
 \[
-J_F(y)u=\left.\frac{d}{dt}F(y+tu)\right|_{t=0}.
+F(y)\approx Ty.
 \]
-Experimentally, the note estimates this response with the central finite difference
+Since fixed-geometry ridge regression is linear, its Jacobian is the operator itself:
+\[
+J_T(y)=T\quad\text{for every }y.
+\]
+The transformer map \(F\) can be nonlinear in the labels. The weakest local version of ``the same
+label-to-prediction rule'' is therefore equality of first-order responses:
+\[
+J_F(y)u\approx Tu.
+\]
+Equivalently, for small label perturbations,
+\[
+F(y+\delta)\approx F(y)+T\delta.
+\]
+The experiments estimate the Jacobian action with the central finite difference
 \[
 D_\varepsilon F(y)[u]
 :=
 \frac{F(y+\varepsilon u)-F(y-\varepsilon u)}{2\varepsilon}.
 \]
+The symmetric form is used because it cancels the leading first-order bias of a one-sided
+difference: for a smooth map, the error is \(O(\varepsilon^2)\) rather than \(O(\varepsilon)\). It also
+treats positive and negative label perturbations in the same direction symmetrically, which is
+important when the goal is to estimate the local tangent response rather than a one-sided effect.
 The behavioral operator test asks whether
 \[
 D_\varepsilon F(y)[u]\approx Tu
 \]
 on held-out label directions.
 
-This must not be overread. Matching the derivative at one point does not imply global equality.
-For example, \(f(x)=x+x^2\) and \(g(x)=x\) have the same value and derivative at \(x=0\), but
-they differ away from zero. The finite-difference test therefore supports a tangent-level claim:
-for small perturbations in the tested directions,
-\[
-F(y+\delta)\approx F(y)+T\delta.
-\]
-It does not prove that \(F(y')=Ty'\) for all nearby or distant label vectors.
+This is still a local statement. Matching the value and first derivative at one point does not imply
+global equality. For example, \(f(x)=x+x^2\) and \(g(x)=x\) have the same value and derivative at
+\(x=0\), but differ away from zero. Thus derivative matching supports tangent-level agreement,
+not \(F(y')=Ty'\) for all possible labels.
 
-\section{Why the Additivity Defect Is Needed}
-
-The finite-difference response is only useful as an operator diagnostic if it is approximately linear
-in the probe direction. Ridge regression has the property
+The probe distribution specifies which counterfactual label directions are tested. The main probes
+are task-label probes:
 \[
-T(u+v)=Tu+Tv.
+u\sim\mathcal{N}(0,A).
 \]
-A nonlinear transformer need not have the analogous local property
+This is the natural law because, under the matched linear task
 \[
-D_\varepsilon F(y)[u+v]\approx D_\varepsilon F(y)[u]+D_\varepsilon F(y)[v].
+y=X_{\mathrm{ctx}}\beta+\eta,\qquad
+\beta\sim\mathcal{N}(0,I),\qquad
+\eta\sim\mathcal{N}(0,\sigma^2I),
 \]
-If this approximate additivity failed badly, then an error such as \(E_\varepsilon(F,T)\) would be
-hard to interpret. A large discrepancy could mean that the transformer is using the wrong linear
-operator, but it could also mean that there is no stable local linear response at the perturbation
-scale being tested.
-
-The additivity defect is a guardrail against that ambiguity. For paired directions
+conditioning on the fixed geometry leaves only \(\beta\) and \(\eta\) random, so
 \[
-V=\{(u_j,v_j)\}_{j=1}^m,
+y\mid G\sim\mathcal{N}(0,X_{\mathrm{ctx}}X_{\mathrm{ctx}}^\top+\sigma^2I)
+=\mathcal{N}(0,A).
 \]
-define the second mixed finite difference
+Equivalently, the conditional label covariance is
 \[
-C_j =
-F(y+\varepsilon u_j+\varepsilon v_j)
--F(y+\varepsilon u_j-\varepsilon v_j)
--F(y-\varepsilon u_j+\varepsilon v_j)
-+F(y-\varepsilon u_j-\varepsilon v_j),
+\Cov(y\mid G)=A.
 \]
-and normalize it as
+Thus \(u\sim\mathcal{N}(0,A)\) samples counterfactual label perturbations with the same covariance
+geometry as labels generated by the task, after the input geometry has been fixed. In this precise
+sense, task probes are the directions the task distribution itself emphasizes. In whitened coordinates,
+they are \(u=A^{1/2}z\), \(z\sim\mathcal{N}(0,I)\). The experiments also use isotropic probes
 \[
-A_\varepsilon(F;V)
-:=
-\left(
-\frac{
-\sum_{j=1}^m\|C_j\|_2^2
-}{
-\sum_{j=1}^m\|T(\varepsilon u_j+\varepsilon v_j)\|_2^2+\eta_{\mathrm{num}}
-}
-\right)^{1/2}.
+u\sim\mathcal{N}(0,I),
 \]
-For any affine function of the labels, \(C_j=0\) exactly: the four evaluations cancel. Therefore a
-small additivity defect says that, at the chosen \(\varepsilon\) and probe law, the transformer's
-nearby input-output surface is close enough to affine for a linear-operator comparison to be
-meaningful.
+which test arbitrary context-label directions equally. The distinction is central: the claim is
+task-local because the transformer is close to ridge on task-label probes but not on arbitrary
+isotropic probes. Build probes are used to construct subspaces or fitted controls; held-out probes
+are used for reported errors.
 
-This diagnostic does not identify the operator. A model could have a small additivity defect and
-still implement the wrong local linear map. The logical role is narrower: first check that the local
-response is approximately linear, then ask whether that local linear response is the ridge operator
-or a reduced ridge operator.
-
-\section{The Operator Errors}
-
-For a held-out probe set \(U=\{u_1,\ldots,u_m\}\), define the transformer-to-operator error
+For a held-out probe set \(U=\{u_1,\ldots,u_m\}\) and a fixed linear operator
+\(S:\R^{n_{\mathrm{ctx}}}\to\R^{n_{\mathrm{tgt}}}\), define
 \[
 E_\varepsilon(F,S;U)
 :=
@@ -216,6 +207,156 @@ ridge regression. The denominator normalizes by the ridge-response energy on the
 an error of \(0.01\) means a root-mean-square discrepancy of about one percent of the typical ridge
 response size.
 
+\begin{proposition}[Transformer errors are not bounded by 1]
+For a finite probe set \(U\), write
+\[
+R_U^2=\sum_j\|Tu_j\|_2^2.
+\]
+If \(D_\varepsilon F(y)[u_j]=0\) for all probes, then
+\[
+E_\varepsilon(F,T;U)=\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}}\le 1.
+\]
+If \(D_\varepsilon F(y)[u_j]=-Tu_j\), then the same calculation gives a value at most 2. More
+generally, if \(D_\varepsilon F(y)[u_j]=cTu_j\), then
+\[
+E_\varepsilon(F,T;U)
+=
+|c-1|\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}},
+\]
+so transformer-response errors have no universal upper bound.
+\end{proposition}
+
+\begin{proof}
+Substitute the three proposed finite-difference responses into the definition of
+\(E_\varepsilon(F,T;U)\). The last expression diverges as \(|c|\to\infty\) whenever the ridge
+response energy \(R_U^2\) is nonzero.
+\end{proof}
+
+Because ridge is linear, its higher-order derivatives are zero. We do not try to estimate all
+higher-order derivatives of the transformer. Instead, we check whether nonlinear interactions are
+small at the tested perturbation scale. Ridge has
+\[
+T(u+v)=Tu+Tv.
+\]
+A nonlinear transformer need not satisfy
+\[
+D_\varepsilon F(y)[u+v]\approx D_\varepsilon F(y)[u]+D_\varepsilon F(y)[v].
+\]
+If this approximate additivity failed badly, then \(E_\varepsilon(F,T)\) would mix two effects:
+failure to be ridge and failure to have a stable local linear response.
+
+For paired directions \(V=\{(u_j,v_j)\}_{j=1}^m\), define the second mixed finite difference
+\[
+C_j =
+F(y+\varepsilon u_j+\varepsilon v_j)
+-F(y+\varepsilon u_j-\varepsilon v_j)
+-F(y-\varepsilon u_j+\varepsilon v_j)
++F(y-\varepsilon u_j-\varepsilon v_j),
+\]
+and the additivity defect
+\[
+A_\varepsilon(F;V)
+:=
+\left(
+\frac{
+\sum_{j=1}^m\|C_j\|_2^2
+}{
+\sum_{j=1}^m\|T(\varepsilon u_j+\varepsilon v_j)\|_2^2+\eta_{\mathrm{num}}
+}
+\right)^{1/2}.
+\]
+For any affine function of the labels, \(C_j=0\) exactly. Because the defect is normalized by
+ridge-response energy, values below one mean the non-additive interaction is smaller than the
+typical ridge response on the tested paired probes; values around one mean it is ridge-scale; values
+above one mean the interaction is larger than the ridge response, so a local-linear interpretation is
+unreliable. This diagnostic does not identify the operator. It only says whether a local operator
+comparison is meaningful at the chosen \(\varepsilon\) and probe law.
+
+\section{Activation Subspaces and Task-Visible Rank}
+
+The previous section gives behavioral certificates:
+\[
+F(y)\approx Ty,\qquad D_\varepsilon F(y)[u]\approx Tu.
+\]
+These are necessary, but they are still input-output facts. They do not say whether the transformer
+represents the directions needed for ridge regression, or whether those directions are used. The
+mechanistic question is: does the residual stream expose a compact set of context-position
+directions sufficient for the task-visible ridge computation?
+
+This is the right internal object to look for because ridge uses context-position dual variables.
+For fixed geometry,
+\[
+\alpha^\star(y)=A^{-1}y\in\R^{n_{\mathrm{ctx}}},
+\qquad
+Ty=K_t\alpha^\star(y).
+\]
+The dual coordinate \(\alpha_i\) is indexed by the \(i\)-th context example. The context residual
+stream has the same context axis. At layer \(\ell\),
+\[
+H_\ell^{\mathrm{ctx}}\in\R^{n_{\mathrm{ctx}}\times D},
+\]
+where \(D\) is the residual width. Rows are context tokens, and the \(k\)-th column
+\(H_\ell^{\mathrm{ctx}}[:,k]\) is a scalar pattern over context positions, hence a vector in
+\(\R^{n_{\mathrm{ctx}}}\). Linear combinations of residual-stream columns therefore define
+candidate directions in the same space as ridge dual variables.
+
+Let
+\[
+Q=[q_1,\ldots,q_r]\in\R^{n_{\mathrm{ctx}}\times r}
+\]
+be a basis matrix for such candidate context-position directions. The subspace is the column span
+\[
+\spanop(Q)=\{Qc:c\in\R^r\}\subseteq\R^{n_{\mathrm{ctx}}},
+\]
+so \(Q\) is both a matrix representation and, by abuse of language, the subspace it spans. We use
+an \(A\)-orthonormal basis,
+\[
+Q^\top A Q=I,
+\]
+because the quadratic part of the ridge dual objective is \(\frac12\alpha^\top A\alpha\). Thus the
+natural size of a dual displacement is \(\alpha^\top A\alpha\), and two directions are orthogonal in
+the ridge geometry when their cross-term in this quadratic energy vanishes.
+
+Now define what it means for \(\spanop(Q)\) to be useful for ridge. This is a restriction of the
+dual solution, not an ordinary restriction of the input label vector. Full ridge solves
+\[
+\alpha^\star(y)
+=
+\arg\min_{\alpha\in\R^{n_{\mathrm{ctx}}}}
+\left\{
+\frac12\alpha^\top A\alpha-\alpha^\top y
+\right\},
+\]
+whose first-order condition is \(A\alpha-y=0\), hence \(\alpha^\star=A^{-1}y\). To restrict the
+dual solution to \(\spanop(Q)\), write \(\alpha=Qc\). Plugging this into the same dual objective gives
+\[
+\frac12 c^\top Q^\top A Qc-c^\top Q^\top y.
+\]
+Since \(Q^\top A Q=I\), this is
+\[
+\frac12 c^\top c-c^\top Q^\top y.
+\]
+Differentiating with respect to \(c\) gives \(c-Q^\top y=0\), so
+\[
+c^\star=Q^\top y.
+\]
+Therefore the restricted dual solution is
+\[
+\alpha_Q(y)=QQ^\top y.
+\]
+Without the \(A\)-orthonormal convention, the same calculation would give
+\[
+\alpha_Q(y)=Q(Q^\top A Q)^{-1}Q^\top y.
+\]
+Predictions are still read out through the context-target kernel matrix \(K_t\), so the reduced
+ridge operator induced by \(Q\) is
+\[
+T_Q:=K_tQQ^\top.
+\]
+This is the bridge from residual-stream directions to an operator-level certificate. We are not
+fitting an arbitrary probe. We are asking whether the directions exposed by the residual stream are
+enough so that ridge, restricted to those directions, still predicts like full ridge.
+
 For two linear operators, define
 \[
 E(S_1,S_2;U)
@@ -228,7 +369,203 @@ E(S_1,S_2;U)
 }
 \right)^{1/2}.
 \]
-This is used to compare exact ridge \(T\) with reduced ridge operators \(T_Q\).
+Thus \(E(T_Q,T;U)\) is the reduced-operator error: it measures how much prediction response is lost
+when full ridge is restricted to \(\spanop(Q)\) on the tested label directions. A small value says
+that \(Q\) is sufficient for ridge in this operator sense. It does not yet say that the transformer
+uses \(Q\).
+
+The reason this sufficiency test is task-visible rather than global is that not every label direction
+matters equally for prediction. Conditional on the fixed geometry,
+\[
+y\mid G\sim\mathcal{N}(0,A).
+\]
+So the task naturally emphasizes perturbations
+\[
+u\sim\mathcal{N}(0,A),
+\]
+not arbitrary Euclidean directions. A direction is task-relevant when it is likely under this
+covariance geometry and when ridge produces a non-negligible target response along it. This leads
+to a purely ridge-theoretic benchmark: before looking inside the transformer, ask how many
+directions are needed by the best possible reduced ridge response on task-distributed labels.
+
+For a rank-\(r\) linear operator \(S_r:\R^{n_{\mathrm{ctx}}}\to\R^{n_{\mathrm{tgt}}}\), define
+\[
+\mathcal{E}_r(G)^2
+:=
+\inf_{\operatorname{rank}(S_r)\le r}
+\frac{
+\mathbb{E}_{u\sim\mathcal{N}(0,A)}\|Tu-S_ru\|_2^2
+}{
+\mathbb{E}_{u\sim\mathcal{N}(0,A)}\|Tu\|_2^2+\eta_{\mathrm{num}}
+}.
+\]
+This asks: if only \(r\) independent label directions can affect the target prediction, what is the
+smallest relative mean squared prediction error one could achieve on task-label perturbations?
+
+To compute this number, whiten the task-label perturbations:
+\[
+u=A^{1/2}z,\qquad z\sim\mathcal{N}(0,I).
+\]
+Then
+\[
+Tu=K_tA^{-1}A^{1/2}z=K_tA^{-1/2}z.
+\]
+Define
+\[
+C_G:=K_tA^{-1/2}.
+\]
+This is the ridge response in coordinates where task-label perturbations are isotropic. Singular
+values of \(T\) would answer the wrong question: they measure response size for raw isotropic
+directions \(u\sim\mathcal{N}(0,I)\). Singular values of \(C_G\) measure response size for the task
+law \(u\sim\mathcal{N}(0,A)\).
+
+Let
+\[
+C_G=U\operatorname{diag}(s_i)V^\top,
+\qquad
+s_1\ge s_2\ge\cdots\ge0.
+\]
+In whitened direction \(v_i\), the ridge prediction changes by \(s_i u_i\), so \(s_i^2\) is the
+squared prediction-change size associated with that task direction. Since \(z\) is isotropic,
+\[
+\mathbb{E}\|C_Gz\|_2^2=\sum_i s_i^2.
+\]
+The best rank-\(r\) approximation keeps the \(r\) largest singular directions, and the omitted
+prediction error is the tail:
+\[
+\mathcal{E}_r(G)^2
+=
+\frac{\sum_{i>r}s_i^2}{\sum_i s_i^2+\eta_{\mathrm{num}}}.
+\]
+Equivalently, the numerator is the smallest possible average squared prediction error after keeping
+only \(r\) task-visible directions, and the denominator is the average squared ridge prediction
+change.
+
+\begin{definition}[Task-visible rank]
+For fixed geometry \(G\) and tolerance \(\epsilon>0\), define
+\[
+r_{\mathrm{task}}(G;\epsilon)
+:=
+\min\left\{
+r:
+\frac{\sum_{i>r}s_i^2}{\sum_i s_i^2+\eta_{\mathrm{num}}}
+\le \epsilon^2
+\right\}.
+\]
+\end{definition}
+
+Thus \(r_{\mathrm{task}}\) is not the algebraic rank of \(T\). It is the number of ridge-relevant
+directions needed so that the best reduced response has relative mean squared prediction error at
+most \(\epsilon^2\) on the task-label distribution. If \(\dim\spanop(Q)<r_{\mathrm{task}}\), then no
+rank-\(\dim\spanop(Q)\) operator, even an optimally aligned one, can reach that tolerance on task
+probes. If \(\dim\spanop(Q)\ge r_{\mathrm{task}}\), success is still not automatic: the span must also
+align with the task-visible ridge directions.
+
+For the linear kernel,
+\[
+\operatorname{rank}(C_G)
+=\operatorname{rank}(T)
+=\operatorname{rank}(K_t)
+\le \min\{d_x,n_{\mathrm{ctx}},n_{\mathrm{tgt}}\},
+\]
+because \(A\) is invertible and \(K_t=X_{\mathrm{tgt}}X_{\mathrm{ctx}}^\top\). Hence
+\[
+r_{\mathrm{task}}(G;\epsilon)
+\le \min\{d_x,n_{\mathrm{ctx}},n_{\mathrm{tgt}}\}.
+\]
+In the flat random linear geometries used in the target-rank sweep, this upper bound is typically
+attained at the reported tolerance. Writing \(X_{\mathrm{ctx}}=P\Sigma V^\top\),
+\[
+C_G
+=X_{\mathrm{tgt}}V\,
+\operatorname{diag}\!\left(\frac{\sigma_i}{\sqrt{\sigma_i^2+\sigma^2}}\right)P^\top .
+\]
+With \(n_{\mathrm{ctx}}=47\) and \(\sigma^2=0.1\), the context singular values are typically much
+larger than the ridge noise, so the shrinkage factors are close to one. When
+\(d_x\le n_{\mathrm{tgt}}=16\), the target-side factor \(X_{\mathrm{tgt}}V\) is generically full column
+rank, so the task-visible rank is empirically close to \(d_x\). In the \(d_x=30\) stress case,
+\(n_{\mathrm{tgt}}=16\) caps the task-visible rank.
+
+\section{Nonlinear Kernels and the Sample-Size Elbow}
+
+The task-visible rank definition does not rely on the linear kernel. For a general kernel, replace
+\[
+K=X_{\mathrm{ctx}}X_{\mathrm{ctx}}^\top,
+\qquad
+K_t=X_{\mathrm{tgt}}X_{\mathrm{ctx}}^\top
+\]
+by \(K_{ij}=k(x_i,x_j)\) and \((K_t)_{aj}=k(x_a^{\mathrm{tgt}},x_j)\), keep
+\(A=K+\sigma^2 I\), and again form
+\[
+C_G=K_tA^{-1/2}.
+\]
+The singular spectrum of \(C_G\) is the finite-episode ridge response spectrum on task-distributed
+label perturbations. Its tail defines the task-visible rank; write this rank as
+\(r_T(G;\epsilon)=r_{\mathrm{task}}(G;\epsilon)\). It is the number of directions a mechanism must
+represent, and align with, to implement KRR at tolerance \(\epsilon\) on that episode.
+
+For nonlinear kernels, \(r_T\) should not be read as an input-dimension count. The finite matrix
+still obeys
+\[
+\operatorname{rank}(C_G)\le \min\{n_{\mathrm{ctx}},n_{\mathrm{tgt}}\},
+\]
+but the population source of the rank is the Mercer spectrum of the kernel under the input law
+\(\rho\):
+\[
+k(x,x')=\sum_{j\ge0}\mu_j\phi_j(x)\phi_j(x'),
+\qquad
+\mu_0\ge\mu_1\ge\cdots\ge0.
+\]
+With \(n=n_{\mathrm{ctx}}\), ridge resolves mode \(j\) with visible energy approximately
+\[
+e_j(n)
+\asymp
+\mu_j\,\frac{n\mu_j}{n\mu_j+\sigma^2}
+=
+\frac{\mu_j^2}{\mu_j+\sigma^2/n}.
+\]
+The multiplier \(n\mu_j/(n\mu_j+\sigma^2)\) is a statistical visibility factor. Modes satisfying
+\[
+n\mu_j\ll\sigma^2
+\]
+are below the ridge noise floor and contribute only weakly to the label-response operator. Modes
+satisfying \(n\mu_j\gtrsim\sigma^2\) are visible. Thus the population analogue of the task-visible
+rank is
+\[
+r_*(n;\epsilon)
+:=
+\min\left\{
+r:
+\frac{\sum_{j>r}e_j(n)}{\sum_j e_j(n)}
+\le \epsilon^2
+\right\}.
+\]
+
+This gives the right reading of finite ranks:
+\[
+r_T(G;\epsilon)
+\approx
+\min\{n_{\mathrm{ctx}},\,n_{\mathrm{tgt}},\,r_*(n_{\mathrm{ctx}};\epsilon)\},
+\]
+up to finite-sample fluctuations. The first two terms are sequence-design caps. They are not
+intrinsic limitations of the kernel; they can be raised by using more context or target points. The
+third term is intrinsic to the chosen kernel, input distribution, noise level, context size, and
+tolerance. It is the rank of the population-visible KRR operator.
+
+This is the sample-size elbow. Increasing \(n_{\mathrm{ctx}}\) lowers the visibility threshold
+\(\sigma^2/n_{\mathrm{ctx}}\) and can reveal additional Mercer modes. Increasing
+\(n_{\mathrm{tgt}}\) does not reveal new population modes, but it prevents the finite diagnostic from
+being target-capped. To train or certify a transformer as implementing the full visible KRR operator
+in a regime, one should choose sequence lengths so that
+\[
+\min\{n_{\mathrm{ctx}},\,n_{\mathrm{tgt}},\,r_*(n_{\mathrm{ctx}};\epsilon)\}
+=
+r_*(n_{\mathrm{ctx}};\epsilon).
+\]
+Otherwise the model may succeed on, and the diagnostics may certify only, a capped low-rank slice
+of KRR rather than the full task-visible operator. Since \(r_*(n;\epsilon)\) depends only on the
+kernel spectrum, input law, noise level, context size, and tolerance, it can be estimated before
+training and used to choose the context and target lengths.
 
 \begin{proposition}[Task-probe scale for \(T_Q\)]
 Let \(u=A^{1/2}z\), \(z\sim\mathcal{N}(0,I)\), and let \(Q^\top A Q=I\). With
@@ -267,33 +604,9 @@ Taking expectation over \(z\) gives
 \mathbb{E}\|Tu\|_2^2=\|C\|_F^2.
 \]
 Right multiplication by the projection \(I-P_Q\) cannot increase Frobenius norm, so the error is at
-most 1. The singular-value expression is the standard optimal residual for keeping the top right
-singular subspace of \(C\).
-\end{proof}
-
-\begin{proposition}[Transformer errors are not bounded by 1]
-For a finite probe set \(U\), write
-\[
-R_U^2=\sum_j\|Tu_j\|_2^2.
-\]
-If \(D_\varepsilon F(y)[u_j]=0\) for all probes, then
-\[
-E_\varepsilon(F,T;U)=\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}}\le 1.
-\]
-If \(D_\varepsilon F(y)[u_j]=-Tu_j\), then the same calculation gives a value at most 2. More
-generally, if \(D_\varepsilon F(y)[u_j]=cTu_j\), then
-\[
-E_\varepsilon(F,T;U)
-=
-|c-1|\frac{R_U}{(R_U^2+\eta_{\mathrm{num}})^{1/2}},
-\]
-so transformer-response errors have no universal upper bound.
-\end{proposition}
-
-\begin{proof}
-Substitute the three proposed finite-difference responses into the definition of
-\(E_\varepsilon(F,T;U)\). The last expression diverges as \(|c|\to\infty\) whenever the ridge
-response energy \(R_U^2\) is nonzero.
+most 1. The singular-value expression follows from Eckart--Young: among all rank-\(r\) right
+projections, the top right singular subspace of \(C\) minimizes the Frobenius residual, leaving
+\(\sum_{i>r}s_i^2\).
 \end{proof}
 
 \begin{proposition}[Triangle reading]
@@ -317,69 +630,11 @@ For population task-probe reduced operators, \(E(T_Q,T)\in[0,1]\). An error \(e\
 operator error, while \(e^2\) is the missed fraction of task-probe ridge-response energy. Thus
 \(0.01\) is about one percent RMS error, \(0.1\) misses about one percent of squared response
 energy, and \(0.54\) misses about \(29\%\). Values near 1 mean the reduced operator leaves almost
-all task-visible ridge response unexplained.
-
-For transformer errors, the zero-response baseline is about 1, and values above 1 are worse than
-having no ridge-like label response on the probes. Very large values mean the local finite-difference
-response is badly misaligned or unstable relative to ridge. Task-probe and isotropic-probe values
-should not be conflated: they normalize against the ridge response on different direction laws.
+all task-visible ridge response unexplained. Transformer errors \(E_\varepsilon(F,T)\) and
+\(E_\varepsilon(F,T_Q)\) are not bounded by 1, as noted above.
 \end{remark}
 
-The probe distribution matters. Task-label probes sample
-\[
-u\sim \mathcal{N}(0,A),
-\]
-which matches the conditional covariance of labels under the linear task, up to an overall scale:
-\[
-\Cov(y\mid G)=\tau^2A.
-\]
-Isotropic probes sample \(u\sim\mathcal{N}(0,I)\), testing arbitrary context-label directions
-equally. The distinction is central: the empirical claim is task-local because the transformer is
-close to ridge on task-label directions but not on arbitrary isotropic directions.
-
-\section{Why the Activation Subspace Is Needed}
-
-The behavioral result
-\[
-E_\varepsilon(F,T;U)\ \text{small}
-\]
-would show that the transformer locally behaves like ridge regression on the tested directions.
-But this is still an input-output statement. It does not identify where the computation lives inside
-the transformer, whether ridge-relevant directions are represented compactly, or whether those
-directions are causally used.
-
-The activation subspace \(Q\) is introduced to move from behavior to mechanism. It is a
-context-side subspace extracted from context-token activations:
-\[
-Q\in\R^{n_{\mathrm{ctx}}\times r},
-\qquad
-Q^\top A Q=I.
-\]
-Its columns are directions over context positions, made orthonormal in the \(A\)-geometry induced
-by the ridge system. This geometry is not cosmetic: ridge regression solves through
-\(A=K+\sigma^2I\), so dual/context directions are naturally measured using \(A\).
-
-If the dual ridge solution is forced to lie in \(\spanop(Q)\), the reduced dual vector is
-\[
-\alpha_Q=QQ^\top y,
-\]
-and the corresponding reduced prediction is
-\[
-T_Qy=K_tQQ^\top y.
-\]
-Thus
-\[
-T_Q:=K_tQQ^\top
-\]
-is the KRR-constrained reduced operator induced by the activation subspace. Saying that \(Q\) is
-sufficient for KRR means
-\[
-E(T_Q,T;U)\ \text{is small}.
-\]
-This is not yet a claim that the transformer uses \(Q\). It says that if one performs the reduced
-ridge computation through \(Q\), the result approximates full ridge on the relevant probes.
-
-The mechanism argument therefore needs three separate checks:
+The mechanism argument therefore needs three distinct checks:
 \[
 E_\varepsilon(F,T;U)\ \text{small},
 \qquad
@@ -387,128 +642,74 @@ E(T_Q,T;U)\ \text{small},
 \qquad
 E_\varepsilon(F,T_Q;U)\ \text{small}.
 \]
-They answer different questions. The first is behavioral: the transformer is locally KRR-like. The
-second is representational/operator sufficiency: the subspace can support ridge. The third links
-that subspace to the transformer's actual response.
-
-The separation is forced by the residual decomposition
+The first is behavioral. The second says the residual-stream subspace supports ridge in the
+reduced-operator sense. The third says the transformer's local response follows the reduced
+operator induced by that same subspace. The decomposition
 \[
 D_\varepsilon F(y)[u]-Tu
 =
 \bigl(D_\varepsilon F(y)[u]-T_Qu\bigr)
 +
-\bigl(T_Qu-Tu\bigr).
+\bigl(T_Qu-Tu\bigr)
 \]
-The first term is the transformer-to-reduced-operator residual; the second is the subspace residual.
-Without both terms, one could make an invalid inference from ``the transformer behaves like KRR''
-and ``a subspace exists'' to ``this subspace explains the behavior.''
+keeps these claims separate.
 
-\section{The Task-Visible Rank}
-
-Before looking inside the transformer, the note asks a ridge-theoretic question: how many
-context-label directions are needed to reproduce ridge predictions on labels generated by the task?
-Under the matched linear task,
+It remains to describe how the residual-stream subspace is extracted. The experiments use two
+final-state constructions in this section, and the next section introduces the causal layerwise
+construction. Given any context-pattern
+matrix \(M\in\R^{n_{\mathrm{ctx}}\times p}\), compute the \(A\)-weighted SVD
 \[
-y=X_{\mathrm{ctx}}\beta+\eta,
-\qquad
-\beta\sim\mathcal{N}(0,\tau^2I),
-\qquad
-\eta\sim\mathcal{N}(0,\tau^2\sigma^2I),
+A^{1/2}M=U\Sigma V^\top,
 \]
-the conditional label covariance is
-\[
-\Cov(y\mid G)=\tau^2A.
-\]
-Thus task-label directions are isotropic after whitening by \(A^{-1/2}\). Write a task-label
-perturbation as
-\[
-u=A^{1/2}z,\qquad z\sim\mathcal{N}(0,I).
-\]
-Then ridge responds as
-\[
-Tu=K_tA^{-1}A^{1/2}z=K_tA^{-1/2}z.
-\]
-This motivates the task-visible operator
-\[
-C_G:=K_tA^{-1/2}.
-\]
-
-Let \(s_1(G)\ge s_2(G)\ge\cdots\ge0\) be the singular values of \(C_G\). These singular values
-measure how much each task-whitened label direction matters for target prediction. The
-task-visible rank is
-\[
-r_{\mathrm{task}}(G;\epsilon)
-:=
-\min\left\{
-r:
-\frac{\sum_{i>r}s_i(G)^2}{\sum_i s_i(G)^2+\eta_{\mathrm{num}}}
-\le \epsilon^2
-\right\}.
-\]
-This rank is computed before looking at activations. It is the number of task-relevant ridge
-directions an activation explanation must be able to carry. It is not a raw architectural budget and
-not a training guarantee.
-
-\section{How Activation Subspaces Are Constructed}
-
-The subspace \(Q\) must be a context-side object because the reduced ridge operator acts on
-context labels. Context-token activations have exactly the right axis for this. If
-\[
-H_L^{\mathrm{ctx}}\in\R^{n_{\mathrm{ctx}}\times D}
-\]
-is a matrix of final context-token hidden states, then each hidden coordinate defines a length
-\(n_{\mathrm{ctx}}\) pattern across context positions. The span of those patterns is the set of
-context-side directions linearly visible in that activation state.
-
-The extraction step converts such visible patterns into an \(A\)-orthonormal trial basis. Given any
-context-pattern matrix \(M\in\R^{n_{\mathrm{ctx}}\times p}\), compute the weighted SVD
-\[
-A^{1/2}M=U\Sigma V^\top.
-\]
-Keep the dominant left singular directions, subject to the rank cap and singular-value threshold,
-and map them back to label coordinates:
+keep the selected left singular directions, and map back:
 \[
 Q(M):=A^{-1/2}U_{\mathrm{kept}}.
 \]
-Then
-\[
-Q(M)^\top A Q(M)=I.
-\]
-The weighting by \(A^{1/2}\) is part of the mechanism claim. The ridge dual variables live in the
-\(A\)-geometry, and the reduced operator is \(T_Q=K_tQQ^\top\). If the extraction ranked
-activation patterns in an unrelated Euclidean geometry, the resulting basis would not be aligned
-with the ridge system being tested.
+Then \(Q(M)^\top A Q(M)=I\). The kept singular directions are those above the numerical threshold
+or within the predeclared rank budget. The task-visible rank tells how many ridge-relevant
+directions should be enough in principle; the experiments then ask whether the residual-stream
+directions achieve small \(E(T_Q,T)\) around that scale.
 
-There are two final-state extractors. The raw extractor takes
+The raw final-state extractor uses the unperturbed final residual stream,
 \[
-M_{\mathrm{raw}}=H_L^{\mathrm{ctx}}.
+M_{\mathrm{raw}}=H_L^{\mathrm{ctx}},
+\qquad
+Q_{\mathrm{raw}}:=Q(M_{\mathrm{raw}}).
 \]
-It asks a broad availability question: does the final context state contain a context-side subspace
-from which KRR can be reconstructed? The response-only extractor instead uses hidden-state
-finite differences:
+It asks an availability question: which context-position directions are linearly visible in the final
+residual stream, and are enough of them present to support the task-visible ridge operator?
+
+The response-only extractor uses finite-difference changes in the final residual stream,
 \[
 Z_L(u)=
 \frac{
 H_L^{\mathrm{ctx}}(y+\varepsilon u)-H_L^{\mathrm{ctx}}(y-\varepsilon u)
 }{2\varepsilon},
 \qquad
-M_{\mathrm{resp}}=[Z_L(u_1),\ldots,Z_L(u_m)].
+M_{\mathrm{resp}}=[Z_L(u_1),\ldots,Z_L(u_m)],
 \]
-It asks a stricter question: among the final-state directions that actually move when labels are
-perturbed, is there a subspace whose reduced ridge operator is close to \(T\)?
+and sets
+\[
+Q_{\mathrm{resp}}:=Q(M_{\mathrm{resp}}).
+\]
+It asks the stricter question: among the directions that actually move when labels are perturbed,
+is there a context-position subspace whose induced \(T_Q\) is close to ridge?
 
-In both cases the basis is frozen after construction. This matters. If \(Q\) were re-extracted for
-each held-out direction, the test would no longer certify a stable internal object. The empirical
-claim is instead that one activation-derived subspace, extracted from the unperturbed episode and
-build probes, induces a fixed operator \(T_Q\) that explains held-out responses.
+In both constructions \(Q\) is frozen after extraction. If the basis were re-extracted for each
+held-out perturbation, it would not define one stable reduced operator. The certificate is that a
+fixed subspace extracted from residual-stream activations induces a fixed \(T_Q\) that agrees with
+ridge and with the transformer's held-out local response.
 
-\section{The Causal Layerwise Construction}
+\section{Causal Layerwise Construction}
 
 The final-state certificate can show that a useful subspace is present at the end of the computation,
 but it does not explain how that subspace appears across layers. The layerwise construction is a
 post-training diagnostic for this question. It looks for context-side directions that satisfy three
 conditions: they move when labels are perturbed, they are new relative to what earlier layers have
 already supplied, and they are causally useful for the transformer's response.
+
+The reported dimension counts only directions that are directly accepted from residual-stream
+responses.
 
 At layer \(\ell\), define the hidden-state finite-difference response
 \[
@@ -526,17 +727,22 @@ The columns of \(M_\ell\) are context-position patterns that are visible at laye
 context labels move. This is the first filter: a direction that does not appear in label-induced
 hidden-state changes is not counted as part of the label-computation mechanism.
 
-The second filter prevents double-counting. Suppose earlier layers have already accepted
-directions. Before processing layer \(\ell\), the construction forms a pre-existing span
+The second filter prevents double-counting. Define the accepted direction matrices inductively.
+Initialize with no accepted directions. At the beginning of layer \(\ell\), assume that
+\[
+S_0,\ldots,S_{\ell-1}
+\]
+have already been defined, where \(S_j\) is the matrix of directions first accepted at layer \(j\)
+and is empty if none were accepted. Declare as already available the seed span generated by these
+earlier accepted directions:
 \[
 R_\ell^{\mathrm{pre}}
 :=
-\spanop\{A^tS_j:0\le j<\ell,\ 0\le t\le \ell-j\},
+\spanop\{S_j:0\le j<\ell\},
 \]
-where \(S_j\) contains the directions first accepted at layer \(j\). The powers of \(A\) are an
-accounting device in the ridge-system geometry. They do not assert that the network literally
-multiplies by \(A\) at each layer; they say that once a direction has appeared, later layers should
-not receive credit for simple \(A\)-geometry refinements of the same direction.
+where the span is over the columns of these matrices. For \(\ell=0\), this span is empty. Projection
+and orthogonality are measured in the \(A\)-geometry, because the candidate directions are later used
+to define the reduced ridge operator.
 
 Let \(Q_\ell^{\mathrm{pre}}\) be an \(A\)-orthonormal basis for this pre-existing span. The novel
 component of the layer response is
@@ -545,6 +751,10 @@ N_\ell
 =
 \left(I-Q_\ell^{\mathrm{pre}}(Q_\ell^{\mathrm{pre}})^\top A\right)M_\ell.
 \]
+Thus \(N_\ell\) is the label-sensitive layer response after removing directions already accepted
+from earlier layers. Later layers do not receive credit for re-exposing the same context-position
+direction.
+
 An \(A\)-weighted SVD of \(N_\ell\) proposes candidate directions
 \[
 A^{1/2}N_\ell=U_\ell\Sigma_\ell V_\ell^\top,
@@ -553,8 +763,8 @@ q_i=A^{-1/2}U_{\ell,i}.
 \]
 These candidates are visible and novel, but visibility is still not use.
 
-The third filter is causal. For a candidate \(q_i\), remove its \(A\)-orthogonal projection from the
-context residual stream at layer \(\ell\):
+The third filter is causal. For each candidate \(q_i\), remove its \(A\)-orthogonal projection from
+the context residual stream at layer \(\ell\):
 \[
 H_\ell^{\mathrm{ctx}}
 \longmapsto
@@ -562,63 +772,131 @@ H_\ell^{\mathrm{ctx}}-q_iq_i^\top A H_\ell^{\mathrm{ctx}},
 \]
 roll the remaining layers forward, and measure the damage to the finite-difference response on a
 separate causal-probe set. A candidate is accepted only if this damage exceeds a predeclared
-threshold. This selection rule is deliberately stronger than decodability: a direction must be
-visible, novel, and functionally consequential at the tested layer.
+threshold. Let \(I_\ell\) be the accepted candidate indices. This completes the induction step by
+defining
+\[
+S_\ell:=A^{-1/2}U_{\ell,I_\ell}.
+\]
+If \(I_\ell\) is empty, then \(S_\ell\) is empty. Otherwise its columns are \(A\)-orthonormal and are
+the directions first accepted at layer \(\ell\). The selection rule is deliberately stronger than
+decodability: a direction must be visible, novel, and functionally consequential at the tested layer.
 
-The accepted directions define the layerwise activation span
+After processing all layers, the accepted directions define the seed layerwise activation span
 \[
-R_{\mathrm{lay}}
+R_{\mathrm{seed}}
 :=
-\spanop\{A^tS_\ell:0\le \ell\le L,\ 0\le t\le L-\ell\},
+\spanop\{S_\ell:0\le \ell\le L\},
 \qquad
-d_{\mathrm{lay}}:=\dim R_{\mathrm{lay}}.
+d_{\mathrm{seed}}:=\dim R_{\mathrm{seed}}.
 \]
-Let \(Q_{\mathrm{lay}}\) be an \(A\)-orthonormal basis of this span. The induced reduced operator is
+Let \(Q_{\mathrm{seed}}\) be an \(A\)-orthonormal basis of this span. The induced reduced operator is
 \[
-T_{Q_{\mathrm{lay}}}=K_tQ_{\mathrm{lay}}Q_{\mathrm{lay}}^\top.
+T_{Q_{\mathrm{seed}}}=K_tQ_{\mathrm{seed}}Q_{\mathrm{seed}}^\top.
 \]
-The layerwise test then compares \(d_{\mathrm{lay}}\) to the task-visible rank and compares
-\(T_{Q_{\mathrm{lay}}}\) to \(T\). Closure defects are reported as a sanity check: they measure how
-well the accepted span reconstructs held-out hidden responses at each layer. If closure is poor,
-then the proposed layerwise account is missing much of the hidden response it claims to summarize,
-even if the endpoint operator happens to look good.
+The layerwise test then compares \(d_{\mathrm{seed}}\) to the task-visible rank and compares
+\(T_{Q_{\mathrm{seed}}}\) to \(T\). The dimension \(d_{\mathrm{seed}}\) is an accounting statistic, not
+the certificate by itself. It says how many directly accepted context-position directions the
+checkpoint exposes. The operator error \(E(T_{Q_{\mathrm{seed}}},T)\) says whether those directions are
+aligned with the task-visible ridge directions. A span may have enough dimension and still miss part
+of \(T\), and a full-dimensional span can make \(T_Q=T\) trivially without implying that the
+transformer behaves like ridge.
 
 \section{Experiment 1: Final-State Operator Certificate}
 
-The first experiment asks whether the transformer locally behaves like exact KRR and whether this
-behavior can be explained through a final context-token activation subspace.
+Experiment 1 is the endpoint certificate. It asks two questions. First, does the trained
+transformer locally behave like exact KRR at the final prediction output? Second, if it does, is
+there a compact final-state context-position subspace whose induced reduced ridge operator explains
+that behavior?
 
-For each episode, the geometry \(G\) is fixed, \(A\) and \(T=K_tA^{-1}\) are computed, and build
-and held-out probe sets are drawn. Two final-state bases are extracted. The raw basis uses the
-unperturbed final context hidden-state matrix
+For each episode, the geometry \(G\) is fixed and the exact ridge operator
 \[
-H_L^{\mathrm{ctx}}\in\R^{n_{\mathrm{ctx}}\times D}.
+T=K_tA^{-1}
 \]
-Each hidden coordinate gives a pattern across context positions. An \(A\)-weighted SVD of these
-patterns yields an \(A\)-orthonormal basis \(Q_L^{\mathrm{raw}}\).
+is computed. The experiment draws separate build probes and held-out evaluation probes. Build
+probes are used only to extract bases or fit controls; all reported operator errors are evaluated
+after the basis is frozen. In the reported run there are 4 episodes, 16 build probes, 32 held-out
+evaluation probes, finite-difference scale \(\varepsilon=10^{-3}\), and a predeclared extraction rank
+cap \(r_{\max}=9\).
 
-The response-only basis uses finite-difference changes in the final context hidden state:
+The experiment constructs two final-state bases. The raw basis uses the unperturbed final context
+residual stream
 \[
-Z_L(u)=
+M_{\mathrm{raw}}:=H_L^{\mathrm{ctx}}\in\R^{n_{\mathrm{ctx}}\times D}.
+\]
+Each residual coordinate is a context-position pattern, and the \(A\)-weighted SVD of
+\(M_{\mathrm{raw}}\) gives an \(A\)-orthonormal basis \(Q_{\mathrm{raw}}\).
+
+The response-only basis uses only the part of the final residual stream that moves under label
+perturbations. For task-label build probes \(u_1,\ldots,u_m\), define
+\[
+Z_L(u_j)=
 \frac{
-H_L^{\mathrm{ctx}}(y+\varepsilon u)-H_L^{\mathrm{ctx}}(y-\varepsilon u)
-}{2\varepsilon}.
+H_L^{\mathrm{ctx}}(y+\varepsilon u_j)-H_L^{\mathrm{ctx}}(y-\varepsilon u_j)
+}{2\varepsilon},
+\qquad
+M_{\mathrm{resp}}=[Z_L(u_1),\ldots,Z_L(u_m)].
 \]
-These matrices are stacked over build probes, and the same \(A\)-weighted SVD extracts
-\(Q_L^{\mathrm{resp}}\). This basis contains directions that actually move under task-label
-perturbations.
+An \(A\)-weighted SVD of \(M_{\mathrm{resp}}\) gives \(Q_{\mathrm{resp}}\). This is a stricter
+availability test than the raw basis: the directions must be visible in label-induced hidden-state
+changes, not merely present in the final residual stream.
 
-After extraction, \(Q\) is frozen and \(T_Q=K_tQQ^\top\) is evaluated on held-out probes. The
-main task-probe results are:
+For either frozen basis \(Q\), the KRR-structured reduced operator is
+\[
+T_Q=K_tQQ^\top.
+\]
+The experiment evaluates both subspace sufficiency,
+\[
+E(T_Q,T),
+\]
+and model-subspace alignment,
+\[
+E_\varepsilon(F,T_Q).
+\]
+
+It also includes a same-span least-squares readout control, denoted \(T_{\mathrm{actLR}}\). For any
+perturbation \(u\), both \(T_Q\) and this control first form the same activation coordinates
+\[
+z=Q^\top u.
+\]
+The KRR-structured reduced operator then uses the KRR-implied readout from those coordinates:
+\[
+T_Qu=(K_tQ)(Q^\top u),
+\qquad
+C_{\mathrm{KRR}}=K_tQ.
+\]
+The control keeps the same features \(Q^\top u\), but fits the readout directly to the
+transformer's finite-difference responses on build probes \(u_1,\ldots,u_B\):
+\[
+C_Q\in
+\arg\min_{C\in\R^{n_{\mathrm{tgt}}\times r}}
+\sum_{j=1}^B
+\left\|D_\varepsilon F(y)[u_j]-CQ^\top u_j\right\|_2^2.
+\]
+It then defines
+\[
+T_{\mathrm{actLR}}u=C_Q(Q^\top u),
+\qquad
+T_{\mathrm{actLR}}:=C_QQ^\top.
+\]
+Thus the two operators use the same \(Q\)-features but different readouts: \(T_Q\) uses the fixed KRR
+readout \(K_tQ\), while \(T_{\mathrm{actLR}}\) uses the least-squares readout \(C_Q\) fitted to the
+transformer. This control is important because it separates two questions. A good
+\(T_{\mathrm{actLR}}\) fit would show that the transformer's local response is decodable from the
+activation coordinates. A good \(T_Q\) fit shows something stronger: the same coordinates support
+the KRR-constrained readout.
+
+The behavioral check succeeds on task-label probes. The pointwise prediction is already close to
+KRR, with relative model--KRR discrepancy \(0.01045\), and the held-out finite-difference operator
+error is
 \[
 E_\varepsilon(F,T)=0.0121.
 \]
-The transformer's local response is therefore close to exact KRR on task-label perturbations.
-Additivity defects are much smaller than the operator errors: \(4.4\times10^{-4}\) on task probes
-and \(3.5\times10^{-3}\) on isotropic probes at \(\varepsilon=10^{-3}\), with the same scale at
-\(10\varepsilon\). This supports the local-linear interpretation.
+The additivity defect is much smaller than this error: \(4.43\times10^{-4}\) on task probes and
+\(3.49\times10^{-3}\) on isotropic probes at \(\varepsilon=10^{-3}\), with comparable values at
+\(10\varepsilon\). Thus the local response is sufficiently close to additive for the operator
+comparison to be meaningful.
 
-The final-state subspace certificate also succeeds. For the raw basis,
+The final-state subspace certificates also succeed on task probes. For the raw basis,
 \[
 E(T_Q,T)=0.00148,
 \qquad
@@ -630,21 +908,42 @@ E(T_Q,T)=0.00367,
 \qquad
 E_\varepsilon(F,T_Q)=0.01239.
 \]
-Thus the final activation subspaces induce reduced ridge operators close to exact KRR, and the
-transformer's local response is close to those reduced operators.
+So the final residual stream exposes compact context-position subspaces whose induced reduced
+ridge operators are close to exact KRR, and the transformer's local response follows those reduced
+operators.
 
-The same-span response-fitted low-rank control clarifies what is being certified. It uses the same
-coordinates \(Q^\top u\) but fits a free target-side readout to the transformer's finite-difference
-responses, rather than using the KRR-constrained map \(K_tQ\). On task probes this control fits
-the transformer slightly better, but it agrees worse with exact KRR. Therefore the reduced operator
-certificate is not merely saying that some low-rank readout can fit the responses; it is saying that
-the activation subspace supports the KRR-structured operator.
+The \(T_{\mathrm{actLR}}\) control shows what this certificate is not saying. On task probes,
+\(T_{\mathrm{actLR}}\) fits the transformer slightly better than \(T_Q\): for the raw basis
+\[
+E_\varepsilon(F,T_{\mathrm{actLR}})=0.00726
+\quad\text{versus}\quad
+E_\varepsilon(F,T_Q)=0.01194.
+\]
+But it agrees worse with exact KRR:
+\[
+E(T_{\mathrm{actLR}},T)=0.01202
+\quad\text{versus}\quad
+E(T_Q,T)=0.00148.
+\]
+The response-only basis shows the same pattern. Therefore the certificate is not merely that a
+free low-rank readout can fit the model response; it is that the same activation-derived subspace
+supports the KRR-structured operator. Matched random subspaces of the same rank fail the
+operator-sufficiency test by large factors on task probes, with \(E(T_Q,T)\approx0.117\) for the raw
+rank and \(0.0955\) for the response rank.
 
-The limitation appears on isotropic probes. The transformer--KRR error rises to about \(0.302\).
-For the raw basis, the reduced operator remains closer to KRR than the transformer response,
-with \(E(T_Q,T)=0.0525\) and \(E_\varepsilon(F,T_Q)\approx0.292\), but the global isotropic claim
-clearly fails. Experiment 1 therefore supports a task-local operator certificate, not a global
-implementation of ridge regression on all label directions.
+The limitation appears immediately off distribution. On isotropic probes,
+\[
+E_\varepsilon(F,T)\approx0.302.
+\]
+The raw reduced operator remains closer to exact KRR than the transformer response does,
+\[
+E(T_Q,T)=0.0525,
+\qquad
+E_\varepsilon(F,T_Q)=0.2915,
+\]
+but the model is no longer KRR-like on arbitrary label directions. Experiment 1 therefore supports
+a task-local final-state operator certificate, not a global implementation of ridge regression on
+all context-label directions.
 
 \begin{table}[htbp]
 \centering
@@ -662,8 +961,25 @@ Held-out task operator error \(E_\varepsilon(F,T)\) & -- & -- & 0.0121\\
 
 \begin{table}[htbp]
 \centering
+\caption{Experiment 1 additivity defect, mean over 4 episodes. The defect measures the normalized
+failure of finite-difference responses to add:
+\(\bigl(\sum_j\|D_\varepsilon F[u_j+v_j]-D_\varepsilon F[u_j]-D_\varepsilon F[v_j]\|^2/
+(\sum_j\|T(u_j+v_j)\|^2+\eta_{\mathrm{num}})\bigr)^{1/2}\).}
+\begin{tabular}{lcc}
+\toprule
+Probe distribution & \(\varepsilon=10^{-3}\) & \(\varepsilon=10^{-2}\)\\
+\midrule
+Task-label probes & \(4.43\times10^{-4}\) & \(3.52\times10^{-4}\)\\
+Isotropic probes & \(3.49\times10^{-3}\) & \(2.93\times10^{-3}\)\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
 \caption{Reduced operator vs. same-span response-fitted low-rank control, mean over 4 episodes.
-\(E(F,S)\) denotes transformer-to-\(S\) operator error; \(E(S,T)\) denotes \(S\)-to-ridge operator error.}
+\(E_\varepsilon(F,S)\) denotes transformer-to-\(S\) finite-difference operator error; \(E(S,T)\)
+denotes \(S\)-to-ridge operator error.}
 \begin{tabular}{llcccc}
 \toprule
 Probe distribution & Basis & \(E(F,T_Q)\) & \(E(F,T_{\mathrm{actLR}})\) & \(E(T_Q,T)\) & \(E(T_{\mathrm{actLR}},T)\)\\
@@ -676,34 +992,70 @@ Isotropic probes & response & 0.3193 & 0.2418 & 0.1278 & 0.2929\\
 \end{tabular}
 \end{table}
 
+The three plots below should be read as diagnostic decompositions of the same certificate.  In all
+of them the vertical axis is a relative error on a logarithmic scale, so lower is better and equal
+vertical gaps correspond to multiplicative changes.  The word ``label'' in the plot labels means
+task-label probes, \(u\sim N(0,A)\); ``isotropic'' means \(u\sim N(0,I)\).  The first plot asks
+whether a free response fit from the same coordinates gives the same conclusion as the
+KRR-constrained reduced operator.  The second plot asks how the certificate changes as we move
+continuously from task-label probes to isotropic probes.  The third plot asks how much retained
+rank is needed before the final-state basis supports the task-visible ridge computation.
+
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{../experiments/exp1_operator_certificate/results/actlr_comparison.png}
-\caption{Experiment 1 reduced-operator certificate versus same-span response fitting. The
-response-fitted operator can fit the transformer slightly better on task probes, but the
-KRR-constrained reduced operator is much closer to exact KRR.}
+\caption{Experiment 1 reduced-operator certificate versus same-span response fitting. Left panel:
+transformer-to-operator response error \(E_\varepsilon(F,S)\), where \(S=T_Q\) for the
+KRR-constrained reduced operator and \(S=T_{\mathrm{actLR}}\) for the same-span response-fitted
+control.  This panel measures only how well the candidate operator predicts the transformer's
+finite-difference responses.  Right panel: operator-to-ridge error \(E(S,T)\), which measures
+whether the candidate operator is actually close to exact KRR.  Thus a good mechanistic
+certificate should be low in both panels.  The free response-fitted operator improves the left
+panel on task probes, especially for the raw basis, but it is worse in the right panel; it fits the
+model slightly better by giving up KRR structure.  The KRR-constrained \(T_Q\) is therefore the
+stronger ridge certificate.}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{../experiments/exp1_operator_certificate/results/probe_interpolation.png}
-\caption{Experiment 1 probe interpolation. The certificate is strong at the task-label endpoint and
-degrades toward isotropic probes, showing that the claim is task-local rather than global.}
+\caption{Experiment 1 probe interpolation. The horizontal axis is the probe mixing parameter
+\(\lambda\), where probes are drawn as
+\(u_\lambda=\sqrt{1-\lambda}\,u_{\mathrm{task}}+\sqrt{\lambda}\,u_{\mathrm{iso}}\), with
+\(u_{\mathrm{task}}\sim N(0,A)\) and \(u_{\mathrm{iso}}\sim N(0,I)\).
+Thus \(\lambda=0\) is the task-label regime and \(\lambda=1\) is the fully isotropic regime.  The
+black dashed curve is the direct behavioral error \(E_\varepsilon(F,T)\).  The blue and orange
+curves decompose the \(T_Q\) certificate into model-to-\(T_Q\) error
+\(E_\varepsilon(F,T_Q)\) and \(T_Q\)-to-KRR error \(E(T_Q,T)\).  The green and red curves show the
+same two errors for the response-fitted control \(T_{\mathrm{actLR}}\).  The key pattern is that all
+task-probe errors are small near \(\lambda=0\), but the model-response errors rise as the probes
+become isotropic.  This is the plot-level evidence that the certificate is task-local rather than a
+global statement over arbitrary label directions.}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\linewidth]{../experiments/exp1_operator_certificate/results/rank_curves.png}
-\caption{Experiment 1 rank curves for raw and response-only final-state bases. The task-probe
-operator error falls near the task-visible rank, while isotropic response errors remain much larger.}
+\caption{Experiment 1 rank curves for raw and response-only final-state bases. The horizontal axis
+is the retained basis rank \(r\).  At each \(r\), the experiment keeps the first \(r\) extracted
+directions, forms \(T_Q=K_tQQ^\top\), and reevaluates the operator errors.  Left panel:
+reduced-operator error \(E(T_Q,T)\), so this panel asks whether the retained final-state directions
+are sufficient to reproduce ridge on the probe distribution.  Right panel:
+transformer-to-reduced-operator response error \(E_\varepsilon(F,T_Q)\), so this panel asks whether
+the transformer's local response follows that reduced operator.  The task-label curves drop sharply
+once enough directions are retained, while the isotropic curves remain substantially larger.  This
+shows both that the final residual stream exposes the task-relevant ridge directions and that these
+directions do not explain arbitrary label perturbations equally well.}
 \end{figure}
 
 \FloatBarrier
 
 \section{Experiment 2: Layerwise Span and Task-Visible Rank}
 
-The second experiment asks how the needed directions appear across layers, and whether their
-dimension matches the task-visible rank predicted by the KRR spectrum.
+The second experiment asks how the needed directions appear across layers. More precisely, it asks
+whether the trained transformer exposes a compact seed span of directly accepted residual-stream
+directions, whether that span is on the task-visible scale predicted by the KRR spectrum, and whether
+the reduced operator induced by that span approximates \(T\).
 
 At layer \(\ell\), define the hidden finite-difference response
 \[
@@ -727,40 +1079,52 @@ An \(A\)-weighted SVD of \(N_\ell\) gives candidate directions. Visibility is no
 is accepted only if removing it from the context residual stream at that layer changes the
 transformer's finite-difference response by a predeclared amount.
 
-The accepted directions across layers define a layerwise activation span \(R_{\mathrm{lay}}\), with
-dimension \(d_{\mathrm{lay}}\). Let \(Q_{\mathrm{lay}}\) be an \(A\)-orthonormal basis of this span and
+The accepted directions across layers define the seed layerwise activation span
 \[
-T_{Q_{\mathrm{lay}}}=K_tQ_{\mathrm{lay}}Q_{\mathrm{lay}}^\top.
+R_{\mathrm{seed}}=\spanop\{S_0,\ldots,S_L\},
+\qquad
+d_{\mathrm{seed}}=\dim R_{\mathrm{seed}}.
 \]
-The hypothesis is a post-training resource law:
+Let \(Q_{\mathrm{seed}}\) be an \(A\)-orthonormal basis of this span and
 \[
-d_{\mathrm{lay}}/r_{\mathrm{task}}\approx1
+T_{Q_{\mathrm{seed}}}=K_tQ_{\mathrm{seed}}Q_{\mathrm{seed}}^\top.
+\]
+The diagnostic expectation is a post-training resource law with an alignment condition:
+\[
+d_{\mathrm{seed}}/r_{\mathrm{task}}\approx1
 \quad\Longrightarrow\quad
-E(T_{Q_{\mathrm{lay}}},T)\approx0,
+E(T_{Q_{\mathrm{seed}}},T)\approx0,
 \]
-provided the layerwise closure defects are small.
+provided the selected span is aligned with the task-visible ridge directions. This is not an exact
+rank identity. The seed span counts directions used by the trained transformer; \(r_{\mathrm{task}}\)
+is the optimal ridge rank for task-distributed perturbations. Dimension by itself is not the
+certificate; the reduced operator \(T_{Q_{\mathrm{seed}}}\) is the certificate.
 
-The target-rank sweep supports this interpretation. For
+The target-rank sweep supports this interpretation. Here \(r_T\) denotes the tail-based
+task-visible rank at RMS tolerance \(\epsilon=0.01\), matching the definition above. For
 \[
 d_x\in\{3,5,8,10\},
 \]
-the selected layerwise dimension reaches the empirical task-visible rank, and the reduced-operator
-error is numerically zero. For \(d_x=15\), the selected dimension falls slightly short:
+the seed span contains slightly more directions than the empirical task-visible rank and the
+reduced-operator error is about \(10^{-3}\). This is the desired pattern: the model exposes a small
+number of directly accepted residual-stream directions, those directions are on the same scale as
+the ridge rank requirement, and restricting ridge to their span loses essentially none of the
+task-local operator response. For \(d_x=15\), the seed span has enough dimension on average,
 \[
-d_{\mathrm{lay}}\approx14.5,
+d_{\mathrm{seed}}\approx15.8,
 \qquad
 r_{\mathrm{task}}\approx14.9,
 \]
-and the reduced-operator error rises to
+but the reduced-operator error rises to
 \[
-E(T_{Q_{\mathrm{lay}}},T)=0.0997.
+E(T_{Q_{\mathrm{seed}}},T)=0.08493.
 \]
-The failure is interpretable: the selected span often misses one task-visible direction at the largest
-tested dimension, and the validation closure defect also rises.
+The failure is therefore not just a rank shortage. It says that the accepted seed directions have
+enough dimension on average, but do not consistently span all task-visible ridge directions.
 
 \begin{table}[htbp]
 \centering
-\caption{Experiment 2 complete target-rank sweep with causal layerwise selection, mean over 16
+\caption{Experiment 2 complete target-rank sweep with causal seed-span selection, mean over 16
 episodes per setting.}
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
@@ -768,53 +1132,61 @@ episodes per setting.}
 \scalebox{0.84}{%
 \begin{tabular}{lrrrrrr}
 \toprule
-Setting & \(d_{\mathrm{lay}}\) & \(r_T\) & \(d_{\mathrm{lay}}/r_T\) &
+Setting & \(d_{\mathrm{seed}}\) & \(r_T\) & \(d_{\mathrm{seed}}/r_T\) &
 \(E(T_Q,T)\) & \(E(F,T_Q)\) & \(E(F,T)\)\\
 \midrule
-\(d_x=3\) & 3.0 & 3.0 & 1.000 & 0.00000 & 0.00629 & 0.00629\\
-\(d_x=5\) & 5.0 & 5.0 & 1.000 & 0.00000 & 0.00911 & 0.00911\\
-\(d_x=8\) & 8.0 & 8.0 & 1.000 & 0.00000 & 0.01293 & 0.01293\\
-\(d_x=10\) & 10.0 & 10.0 & 1.000 & 0.00000 & 0.01306 & 0.01306\\
-\(d_x=15\) & 14.5 & 14.9 & 0.971 & 0.09967 & 0.10891 & 0.01743\\
-\(d_x=30\) & 21.4 & 16.0 & 1.336 & 0.54023 & 1.56335 & 1.68726\\
+\(d_x=3\) & 4.6 & 3.0 & 1.542 & 0.00114 & 0.00641 & 0.00629\\
+\(d_x=5\) & 6.0 & 5.0 & 1.200 & 0.00135 & 0.00926 & 0.00911\\
+\(d_x=8\) & 9.0 & 8.0 & 1.125 & 0.00174 & 0.01317 & 0.01293\\
+\(d_x=10\) & 11.0 & 10.0 & 1.100 & 0.00135 & 0.01309 & 0.01305\\
+\(d_x=15\) & 15.8 & 14.9 & 1.063 & 0.08493 & 0.09598 & 0.01743\\
+\(d_x=30\) & 47.0 & 16.0 & 2.938 & 0.00000 & 1.68673 & 1.68673\\
 \bottomrule
 \end{tabular}}
 \renewcommand{\arraystretch}{1}
 \end{table}
 
 The \(d_x=30\) row is an exploratory stress case. Since \(n_{\mathrm{tgt}}=16\), the task-visible
-rank is capped at \(r_T=16\), even though the input dimension is 30. The same \(D=128,L=8,H=4\)
-architecture and 10k-step training recipe produces a checkpoint that is not behaviorally close to
-ridge, and the extracted span is not ridge-sufficient despite selecting more than 16 directions:
+rank is capped at \(r_T=16\), even though the input dimension is 30. In the seed-span rerun, causal
+selection expands to the full context-position space, \(d_{\mathrm{seed}}=47\), so the reduced
+operator equals exact KRR by construction:
 \[
-E(T_Q,T)=0.54023,
-\qquad
-E(F,T)=1.68726.
+E(T_Q,T)=0.
 \]
-This reinforces the diagnostic separation: accepted causal directions are not enough unless they
-align with the task-visible KRR directions and the model is in the local KRR-like regime.
+But the model itself is not behaviorally close to ridge:
+\[
+E(F,T)=1.68673.
+\]
+This is a useful stress-test warning. A large or even full seed span can make \(T_Q\) ridge-sufficient
+without showing that the transformer uses that operator. The model-subspace alignment error
+\[
+E(F,T_Q)=1.68673
+\]
+exposes the failure.
+Thus \(d_x=30\) reinforces the diagnostic separation: representation sufficiency is not behavioral
+success, and dimension alone is not the mechanism claim.
 
 \begin{table}[htbp]
 \centering
-\caption{Experiment 2 fixed-\(d_x=5\) depth/head sweep, mean over 16 episodes. All checkpoints use
-width \(D=128\).}
+\caption{Experiment 2 fixed-\(d_x=5\) depth/head sweep with causal seed-span selection, mean over
+16 episodes. All checkpoints use width \(D=128\).}
 \scriptsize
 \setlength{\tabcolsep}{2.5pt}
 \renewcommand{\arraystretch}{0.85}
 \scalebox{0.84}{%
 \begin{tabular}{lrrrrrrr}
 \toprule
-Checkpoint & \(L\) & \(H\) & \(d_{\mathrm{lay}}\) & \(r_T\) & \(E(T_Q,T)\) &
+Checkpoint & \(L\) & \(H\) & \(d_{\mathrm{seed}}\) & \(r_T\) & \(E(T_Q,T)\) &
 \(E(F,T_Q)\) & \(E(F,T)\)\\
 \midrule
-\(H=1\)  & 8  & 1 & 5.0  & 5.0 & 0.00000 & 0.01560 & 0.01560\\
-\(H=2\)  & 8  & 2 & 5.0  & 5.0 & 0.00000 & 0.00904 & 0.00904\\
-\(L=2\)  & 2  & 4 & 20.6 & 5.0 & 0.00000 & 0.18535 & 0.18535\\
-\(L=4\)  & 4  & 4 & 5.1  & 5.0 & 0.00000 & 0.02528 & 0.02528\\
-\(L=6\)  & 6  & 4 & 5.0  & 5.0 & 0.00000 & 0.01255 & 0.01255\\
-\(H=8\)  & 8  & 8 & 5.0  & 5.0 & 0.00000 & 0.00982 & 0.00982\\
-\(L=8\)  & 8  & 4 & 5.0  & 5.0 & 0.00000 & 0.00952 & 0.00952\\
-\(L=12\) & 12 & 4 & 5.0  & 5.0 & 0.00000 & 0.00944 & 0.00944\\
+\(L=2\)  & 2  & 4 & 16.3 & 5.0 & 0.00095 & 0.18537 & 0.18535\\
+\(L=4\)  & 4  & 4 & 6.2  & 5.0 & 0.00127 & 0.02534 & 0.02528\\
+\(L=6\)  & 6  & 4 & 6.1  & 5.0 & 0.00137 & 0.01272 & 0.01255\\
+\(L=8\)  & 8  & 4 & 6.0  & 5.0 & 0.00147 & 0.00962 & 0.00952\\
+\(L=12\) & 12 & 4 & 6.1  & 5.0 & 0.00110 & 0.00953 & 0.00943\\
+\(H=1\)  & 8  & 1 & 6.2  & 5.0 & 0.00085 & 0.01558 & 0.01559\\
+\(H=2\)  & 8  & 2 & 6.1  & 5.0 & 0.00108 & 0.00908 & 0.00904\\
+\(H=8\)  & 8  & 8 & 6.0  & 5.0 & 0.00164 & 0.00996 & 0.00982\\
 \bottomrule
 \end{tabular}}
 \renewcommand{\arraystretch}{1}
@@ -822,8 +1194,9 @@ Checkpoint & \(L\) & \(H\) & \(d_{\mathrm{lay}}\) & \(r_T\) & \(E(T_Q,T)\) &
 
 The fixed-\(d_x=5\) depth and head sweeps add an important qualification. These checkpoints keep
 the task dimension and width fixed while varying depth over \(L\in\{2,4,6,8,12\}\) and head count
-over \(H\in\{1,2,4,8\}\). Causal selection gives \(E(T_Q,T)=0\) for all reported checkpoints, but
-behavior still varies: the shallow \(L=2\) model has an exact reduced-operator certificate but
+over \(H\in\{1,2,4,8\}\). Causal seed selection gives \(E(T_Q,T)\approx10^{-3}\) for all reported
+checkpoints, but behavior still varies: the shallow \(L=2\) model has a strong reduced-operator
+certificate but
 \(E(F,T)=0.185\), while the \(L=8\), \(H=2\), and \(L=12\) checkpoints have errors near \(10^{-2}\).
 Thus the sweep is a control against conflating availability with use:
 \[
@@ -836,9 +1209,221 @@ E_\varepsilon(F,T)\ \text{small}.
 The activations may expose a ridge-sufficient subspace even when the trained transformer does not
 use it accurately enough to behave like KRR.
 
-\section{Experiment 3: Causal Direction Removal}
+\section{Dimension-40 Regime-Mismatch Stress Test}
 
-The third experiment asks whether the task-important directions inside \(Q\) are actually used by
+The \(d_x=40\) checkpoint is useful because it separates two questions that are easy to conflate:
+whether KRR-relevant directions are present in the residual stream, and whether the trained model
+uses them as a full target-rich KRR operator. The checkpoint was trained in a target-poor regime:
+\[
+n_{\mathrm{tgt}}=8,
+\qquad
+\tau(\Sigma)=\sum_{i=1}^{40}\frac{\lambda_i}{\lambda_i+\sigma^2}\le16,
+\]
+with \(n_{\mathrm{ctx}}\) sampled as a multiple of the effective dimension. Thus each training episode
+directly supervised only a small number of target queries. Across many episodes this is still a
+Monte Carlo signal for the population prediction loss, but it does not force one forward pass to
+expose a high-rank simultaneous target operator.
+
+The diagnostic deliberately uses a richer geometry:
+\[
+n_{\mathrm{ctx}}=47,\qquad n_{\mathrm{tgt}}=40.
+\]
+In this setting the task-visible rank is
+\[
+r_T=32.4,
+\]
+well above the training target count. Hence the diagnostic is a stress test of whether a
+target-poor-trained checkpoint generalizes to a much richer finite-episode operator.
+
+\begin{table}[htbp]
+\centering
+\caption{\(d_x=40\) target-rich diagnostics. The first two rows come from the final-state
+certificate run. The causal seed rows come from a separate 16-episode causal run; both arithmetic
+means and medians are shown because two catastrophic episodes dominate the mean. Within a single
+run, \(E(F,T)\) is independent of the chosen basis.}
+\scriptsize
+\setlength{\tabcolsep}{2.4pt}
+\renewcommand{\arraystretch}{0.9}
+\begin{tabular}{llrrrrrr}
+\toprule
+Run & Basis & Statistic & \(\dim Q\) & \(r_T\) & \(E(T_Q,T)\) & \(E(F,T_Q)\) & \(E(F,T)\)\\
+\midrule
+Final-state & raw & mean & 40.0 & -- & 0.01922 & 0.08512 & 0.08541\\
+Final-state & response & mean & 40.0 & -- & 0.07400 & 0.11286 & 0.08541\\
+Causal seed & seed & mean & 29.2 & 32.4 & 0.13741 & 98.74530 & 98.67662\\
+Causal seed & seed & median & 28.0 & 35.0 & 0.17142 & 0.21569 & 0.12781\\
+\bottomrule
+\end{tabular}
+\renewcommand{\arraystretch}{1}
+\end{table}
+
+The final-state certificate shows availability. At rank \(40\), the raw final-state basis induces a
+reduced KRR operator close to exact KRR on task-label probes:
+\[
+E(T_{Q_{\mathrm{raw}}},T)=0.01922.
+\]
+The response-only final basis is weaker but still informative,
+\[
+E(T_{Q_{\mathrm{resp}}},T)=0.07400.
+\]
+These numbers say that the final residual stream contains many context-position directions from
+which a KRR-structured operator can be built. The common value of \(E(F,T)\) across the two
+final-state rows is expected, because \(E(F,T)\) does not depend on whether the comparison basis is
+raw or response-only. These final-state rows do not say that the transformer uses those directions
+causally, and they also use a broad rank cap \(40\), not the task-visible rank itself.
+
+The causal target-rich diagnostic gives the harder reading, but the arithmetic mean must be read
+carefully. It accepts
+\[
+d_{\mathrm{seed}}=29.2
+\]
+directions on average, while KRR requires
+\[
+r_T=32.4
+\]
+task-visible directions at the reported tolerance. The dimension ratio is therefore about \(0.90\).
+The median episode is similar in scale, with \(d_{\mathrm{seed}}=28.0\) and \(r_T=35.0\). Moreover,
+\[
+E(T_{Q_{\mathrm{seed}}},T)=0.13741,
+\]
+with median \(0.17142\), so the accepted span is not merely a little short; it is also not perfectly
+aligned with the task-visible KRR directions.
+
+The model-response mean is much less representative. The causal run contains two catastrophic
+pointwise failures: episodes 3 and 15 have model/KRR MSE ratios \(3304.6\) and \(35537.9\),
+respectively. These two episodes drive
+\[
+E(F,T)=98.67662.
+\]
+The median is instead
+\[
+E(F,T)=0.12781,
+\]
+and after excluding episodes with \(E(F,T)>1\), the mean over the remaining 14 episodes is
+\[
+E(F,T)=0.12346.
+\]
+Thus the target-rich causal diagnostic shows lack of robustness rather than uniform failure on every
+episode: most episodes are moderately KRR-like, but rare scale/spectrum cases cause catastrophic
+breakdown.
+
+The interpretation is not that target-poor training is theoretically incapable of learning KRR.
+Resampled small target sets can train the population prediction rule in expectation. The point is
+mechanistic and operational: training with \(n_{\mathrm{tgt}}=8\) did not give strong per-episode
+pressure to build a reusable \(r_T\approx32\) label-response operator. When the diagnostic removes
+the target cap, it asks for a richer simultaneous computation than the checkpoint was directly
+trained to expose. The \(d_x=40\) result should therefore be read as a regime-mismatch stress test:
+the model contains substantial KRR-sufficient final-state structure, but the causal seed span is
+short or misaligned relative to the target-rich \(r_T\), and the model has rare catastrophic failures
+in this richer regime.
+
+This motivates the sequence-length prescription above. If the goal is to train and certify a true
+task-visible KRR mechanism in a given regime, choose \(n_{\mathrm{ctx}}\) and \(n_{\mathrm{tgt}}\) so that
+\[
+\min\{n_{\mathrm{ctx}},n_{\mathrm{tgt}},r_*(n_{\mathrm{ctx}};\epsilon)\}
+=r_*(n_{\mathrm{ctx}};\epsilon)
+\]
+during training as well as diagnosis. Target-rich diagnostics alone can reveal the missing operator;
+target-rich training is the direct way to put pressure on the model to learn it.
+
+\section{RBF Kernel Experiment: Prediction-Risk Rank and Availability}
+
+The RBF experiment tests whether the same operator picture survives when the task-visible rank is no
+longer tied to the input dimension. The checkpoint is trained on labels from an RBF Gaussian process
+with lengthscale \(3.0\), signal variance \(1.0\), and noise variance \(\sigma^2=0.1\). On held-out RBF
+tasks the model is close to KRR: at the end of training the prediction MSE is within about
+\(1\)--\(3\%\) of exact KRR, and the model--KRR prediction discrepancy is around \(10^{-3}\).
+
+For this nonlinear task, the strict rank used above,
+\[
+r_{1\%\mathrm{op}}
+=
+\min\left\{r:
+\sqrt{\frac{\sum_{i>r}s_i^2}{\sum_i s_i^2+\eta_{\mathrm{num}}}}
+\le 0.01
+\right\},
+\]
+is a deliberately stringent operator-completion diagnostic. It asks for one-percent relative
+operator recovery even when the omitted modes are below the task's prediction noise scale. For the
+RBF task we therefore also compute the prediction-risk rank
+\[
+r_{5\%}
+=
+\min\left\{r:\sum_{i>r}s_i^2\le 0.05\,R_{\mathrm{KRR}}\right\},
+\qquad
+R_{\mathrm{KRR}}
+=
+\operatorname{tr}\!\left(K_{tt}-K_tA^{-1}K_t^\top\right).
+\]
+This is model-independent: it is computed from the KRR geometry before looking at activations. It
+asks how many modes are needed so that discarding the rest would add at most five percent of the KRR
+posterior prediction risk. Equivalently, it induces an episode-dependent operator tolerance
+\[
+\tau_{\mathrm{task}}
+=
+\sqrt{\frac{0.05\,R_{\mathrm{KRR}}}{\sum_i s_i^2+\eta_{\mathrm{num}}}}.
+\]
+In the RBF spectral scan this tolerance is much looser than \(0.01\): about \(0.064\) for
+\(n_{\mathrm{ctx}}=47\) and about \(0.044\) for \(n_{\mathrm{ctx}}=128\). This is the missing
+normalization. The strict rank counts low-energy tail modes; \(r_{5\%}\) counts modes that matter
+relative to the irreducible KRR prediction risk.
+
+\begin{table}[htbp]
+\centering
+\caption{RBF diagnostics. \(r_{5\%}\) is the prediction-risk rank; \(r_{1\%\mathrm{op}}\) is the old
+strict relative-operator rank. The final-state column reports the raw final-basis reduced-operator
+error at the nearest rank to \(r_{5\%}\). The causal seed columns use the layerwise causal extractor
+and should be read as a stricter mechanistic test, not as the definition of task rank.}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{0.9}
+\begin{tabular}{lrrrrrr}
+\toprule
+Regime & \(r_{5\%}\) & \(r_{1\%\mathrm{op}}\) & raw final \(E(T_Q,T)\) &
+\(d_{\mathrm{seed}}\) & seed \(E(T_Q,T)\) & MSE/KRR\\
+\midrule
+\(n_{\mathrm{ctx}}=47,\ n_{\mathrm{tgt}}=64\)   & 17.1 & 27.7 & 0.12095 & 19.8 & 0.14352 & 1.013\\
+\(n_{\mathrm{ctx}}=47,\ n_{\mathrm{tgt}}=128\)  & 18.3 & 30.6 & 0.11393 & 21.1 & 0.13612 & 1.024\\
+\(n_{\mathrm{ctx}}=128,\ n_{\mathrm{tgt}}=128\) & 24.8 & 47.1 & 0.07313 & 22.9 & 0.17226 & 1.052\\
+\(n_{\mathrm{ctx}}=128,\ n_{\mathrm{tgt}}=256\) & 28.6 & 51.2 & 0.06499 & 23.0 & 0.16480 & 1.007\\
+\bottomrule
+\end{tabular}
+\renewcommand{\arraystretch}{1}
+\end{table}
+
+The table gives a clean reading. First, the RBF behavior itself is strong: the model's MSE is close
+to KRR in all four evaluations. Second, the rank requirement is not the strict operator rank. Under
+the prediction-risk definition, the relevant ranks are roughly \(17\)--\(29\), not \(28\)--\(51\).
+Thus it is not paradoxical that a compact representation could support near-KRR prediction while
+failing to recover every strict tail mode.
+
+Third, the final residual stream contains substantial RBF-KRR structure. At the prediction-risk
+rank, the raw final-state basis already reduces the KRR operator error to \(0.06\)--\(0.12\), and
+the full rank curves continue down to exact operator recovery when the retained basis spans the
+context-position space. This is an availability result: the information needed to build the RBF KRR
+operator is present in the final context states to a significant degree. It is weaker than the linear
+certificate, where the reduced-operator error is essentially numerical zero at the task rank, but it
+is far from a failure.
+
+The unresolved part is the causal seed extractor. Its dimension is close to \(r_{5\%}\) in the
+\(n_{\mathrm{ctx}}=47\) runs and slightly short in the \(n_{\mathrm{ctx}}=128\) runs, but the induced
+operator error remains around \(0.14\)--\(0.17\). This exceeds the implied prediction-risk operator
+tolerance. Therefore the RBF causal span should not be claimed as a complete KRR mechanism. The
+right interpretation is narrower and cleaner:
+\[
+\text{RBF behavior and final-state availability succeed,}
+\]
+while
+\[
+\text{causal seed extraction remains only partially aligned with the KRR operator.}
+\]
+This distinction is useful. It says the RBF checkpoint has learned near-KRR prediction and exposes
+much of the relevant operator structure, but our current layerwise causal basis construction is not
+yet a fully satisfactory mechanistic certificate for the nonlinear task.
+
+\section{Experiment 4: Causal Direction Removal}
+
+The fourth experiment asks whether the task-important directions inside \(Q\) are actually used by
 the transformer. This is necessary because decodability and sufficiency do not by themselves prove
 causal use.
 
@@ -924,18 +1509,30 @@ intervention family, while \(Q\) itself is necessary.
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.82\linewidth]{../experiments/exp3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
-\caption{Experiment 3: whole-subspace complement ablation at residual state \(s=1\). Keeping only
-the \(Q\)-projection nearly preserves the task-local response and pointwise KRR prediction;
-removing \(Q\) destroys both.}
+\caption{Experiment 4: whole-subspace complement ablation at residual state \(s=1\). Left panel:
+task finite-difference response error \(E_{\mathrm{task}}(F,T)\). Right panel: relative KRR
+prediction error \(\|F_{\mathrm{surg}}(y)-Ty\|_2/\|Ty\|_2\). Keeping only the \(Q\)-projection
+nearly preserves both quantities; removing \(Q\) destroys both.}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.78\linewidth]{../experiments/exp3_causal_surgery/results/experiment_3_key_surgery.pdf}
-\caption{Experiment 3: causal effect of task-important activation directions. Task finite-difference
-response damage after removing \(k\) context-token directions at residual state \(s=1\).
+\caption{Experiment 4: causal effect of task-important activation directions. The plotted metric is
+task finite-difference response damage
+\(\bigl(\sum_j\|D_\varepsilon F_{\mathrm{surg}}(y)[u_j]-D_\varepsilon F_{\mathrm{base}}(y)[u_j]\|^2/
+(\sum_j\|Tu_j\|^2+\eta_{\mathrm{num}})\bigr)^{1/2}\), for task probes \(u_j\sim\mathcal{N}(0,A)\).
 High task-leverage directions produce orders-of-magnitude larger damage than low-task-leverage
 directions from the same activation basis.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.78\linewidth]{../experiments/exp3_causal_surgery/results/experiment_3_key_surgery_point_error.pdf}
+\caption{Experiment 4: the same surgery plot, but measuring relative KRR prediction error
+\(\|F_{\mathrm{surg}}(y)-Ty\|_2/\|Ty\|_2\) instead of finite-difference response damage. High
+task-leverage removals also destroy the model's prediction, while low-task-leverage removals are
+nearly inert.}
 \end{figure}
 
 \FloatBarrier
@@ -951,9 +1548,9 @@ The experiments justify a bounded mechanistic claim:
 \begin{quote}
 For the tested checkpoint, geometries, perturbation scale, and task-label probe distribution, the
 transformer's local label response is well approximated by a reduced KRR operator induced by a
-compact context-side activation subspace. That subspace reaches the rank predicted by the
-task-visible KRR spectrum in successful settings, and its high-task-leverage directions are causally
-important for the transformer's response.
+compact context-side activation subspace. In successful settings the accepted seed span is on the
+scale predicted by the task-visible KRR spectrum and its induced reduced operator is close to exact
+KRR; its high-task-leverage directions are causally important for the transformer's response.
 \end{quote}
 
 They do not justify stronger claims. They do not show that the transformer globally equals ridge
@@ -963,7 +1560,8 @@ on a neighborhood. They do not show that the transformer literally executes the 
 y\mapsto QQ^\top y\mapsto K_tQQ^\top y
 \]
 as its internal program. They also do not show that architecture alone guarantees the behavior.
-The rank theorem supplies a requirement for context-side subspaces; it is not an SGD theorem.
+The task-visible rank calculation supplies a requirement for context-side subspaces; it is not an
+SGD theorem.
 
 The clean final formulation is:
 
@@ -971,8 +1569,8 @@ The clean final formulation is:
 The trained transformer locally realizes the ridge-regression label-response operator on
 task-distributed directions. In the tested regime, this behavior is explained by a compact
 context-side activation subspace whose induced reduced ridge operator approximates exact KRR,
-whose dimension matches the task-visible rank requirement, and whose high-leverage directions are
-causally important for the transformer's response.
+whose dimension is on the task-visible scale in successful settings, and whose high-leverage
+directions are causally important for the transformer's response.
 \end{quote}
 
 \section{Logical Chain}
@@ -990,12 +1588,12 @@ The argument can be read as a sequence of commitments, each narrower than the pr
 \item Construct the KRR-constrained reduced operator \(T_Q=K_tQQ^\top\).
 \item Test subspace sufficiency with \(E(T_Q,T)\).
 \item Test model-subspace alignment with \(E_\varepsilon(F,T_Q)\).
-\item Compare layerwise span dimension \(d_{\mathrm{lay}}\) to \(r_{\mathrm{task}}\).
+\item Compare seed layerwise span dimension \(d_{\mathrm{seed}}\) to \(r_{\mathrm{task}}\).
 \item Remove high-leverage \(Q\)-directions and check whether task-local response is damaged.
 \end{enumerate}
 
 This is the full mechanism story: behavioral similarity, a KRR-structured activation certificate,
-rank agreement with the task-visible spectrum, and causal specificity of the high-leverage
+rank-scale agreement with the task-visible spectrum, and causal specificity of the high-leverage
 directions.
 
 \end{document}

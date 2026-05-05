@@ -1,0 +1,14 @@
+Experiment 2 Validated Native Rank
+
+selection_mode=causal
+span_mode=seed
+episodes=16, n_build=16, n_val=16, n_eval=16, gamma=0.95, min_explainable_frac=0.001
+n_causal=8, causal_damage_tau=0.05, causal_max_keep=0, max_candidate_rank=16
+n_ctx=47, n_tgt=16, sigma2=0.1, tau_sv=0.001, tau_subspace=1e-09
+
+name   probe L   H   B_nat    dim    rT    dim/rT  mean_s  E(TQ,T)    E(F,TQ)    E(F,T)     valClos  maxDmg  
+dx3    task    8   4      4.6    4.6   3.0   1.542    0.51    0.00114    0.00641    0.00629  0.01763  4.83934
+dx5    task    8   4      6.0    6.0   5.0   1.200    0.67    0.00135    0.00926    0.00911  0.01883 90.33050
+dx8    task    8   4      9.0    9.0   8.0   1.125    1.00    0.00174    0.01317    0.01293  0.01541 556.93907
+dx10   task    8   4     11.0   11.0  10.0   1.100    1.22    0.00135    0.01309    0.01305  0.01258 487.21179
+dx15   task    8   4     15.8   15.8  14.9   1.063    1.76    0.08493    0.09598    0.01743  0.12294 298719.51707

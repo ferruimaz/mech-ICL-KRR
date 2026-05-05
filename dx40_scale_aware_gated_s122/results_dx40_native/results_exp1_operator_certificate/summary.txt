@@ -1,0 +1,37 @@
+Experiment 1: Operator-Galerkin Certificate
+
+model=dx40, episodes=4, eps=0.001, tau_sv=0.001, r_max=40
+
+Predictive task check: MSE(model,true)=0.09442, MSE(KRR,true)=0.09595, MSE ratio=0.9864, rel(model,KRR)=0.1009
+
+Galerkin vs actLR:
+  isotropic/raw: TQ model-fit=0.2716, actLR model-fit=1.458, TQ-to-KRR=0.0895, actLR-to-KRR=1.463
+  isotropic/response: TQ model-fit=0.3987, actLR model-fit=1.565, TQ-to-KRR=0.2959, actLR-to-KRR=1.57
+  label/raw: TQ model-fit=0.08512, actLR model-fit=0.7679, TQ-to-KRR=0.01922, actLR-to-KRR=0.7643
+  label/response: TQ model-fit=0.1129, actLR model-fit=0.821, TQ-to-KRR=0.074, actLR-to-KRR=0.817
+
+Probe interpolation endpoints:
+  raw, lambda=0: E_model_to_T=0.0829, E_model_to_TQ=0.0824, E_TQ_to_T=0.01713
+  raw, lambda=1: E_model_to_T=0.2814, E_model_to_TQ=0.2836, E_TQ_to_T=0.09176
+  response, lambda=0: E_model_to_T=0.0829, E_model_to_TQ=0.1064, E_TQ_to_T=0.07067
+  response, lambda=1: E_model_to_T=0.2814, E_model_to_TQ=0.4166, E_TQ_to_T=0.3204
+
+Key held-out means:
+  isotropic/raw: rank=40.00, E_model_to_op=0.2716, E_op_to_T=0.0895, X_use=0.9246, X_sub=0.9895
+  isotropic/raw_actLR: rank=40.00, E_model_to_op=1.458, E_op_to_T=1.463, X_use=-1.15, X_sub=-1.164
+  isotropic/raw_random: rank=40.00, E_model_to_op=0.5566, E_op_to_T=0.4996, X_use=0.691, X_sub=0.7462
+  isotropic/resp: rank=40.00, E_model_to_op=0.3987, E_op_to_T=0.2959, X_use=0.8335, X_sub=0.9022
+  isotropic/resp_actLR: rank=40.00, E_model_to_op=1.565, E_op_to_T=1.57, X_use=-1.47, X_sub=-1.493
+  isotropic/resp_random: rank=40.00, E_model_to_op=0.5971, E_op_to_T=0.5251, X_use=0.6431, X_sub=0.7201
+  label/raw: rank=40.00, E_model_to_op=0.08512, E_op_to_T=0.01922, X_use=0.9927, X_sub=0.9996
+  label/raw_actLR: rank=40.00, E_model_to_op=0.7679, E_op_to_T=0.7643, X_use=0.4199, X_sub=0.4151
+  label/raw_random: rank=40.00, E_model_to_op=0.1539, E_op_to_T=0.1364, X_use=0.9762, X_sub=0.9812
+  label/resp: rank=40.00, E_model_to_op=0.1129, E_op_to_T=0.074, X_use=0.9872, X_sub=0.994
+  label/resp_actLR: rank=40.00, E_model_to_op=0.821, E_op_to_T=0.817, X_use=0.3373, X_sub=0.332
+  label/resp_random: rank=40.00, E_model_to_op=0.1613, E_op_to_T=0.1416, X_use=0.9735, X_sub=0.979
+
+Additivity defects:
+  isotropic, eps=0.001: 0.00133
+  isotropic, eps=0.01: 0.005422
+  label, eps=0.001: 0.0008171
+  label, eps=0.01: 0.001153

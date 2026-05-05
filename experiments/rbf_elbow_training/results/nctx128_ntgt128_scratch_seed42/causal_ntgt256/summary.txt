@@ -1,0 +1,10 @@
+Experiment 2 Validated Native Rank
+
+selection_mode=causal
+span_mode=seed
+episodes=8, n_build=16, n_val=16, n_eval=16, gamma=0.95, min_explainable_frac=0.001
+n_causal=8, causal_damage_tau=0.05, causal_max_keep=0, max_candidate_rank=128
+n_ctx=128, n_tgt=256, sigma2=0.1, tau_sv=0.001, tau_subspace=1e-09
+
+name   probe L   H   B_nat    dim    rT    dim/rT  mean_s  E(TQ,T)    E(F,TQ)    E(F,T)     valClos  maxDmg  
+rbf_elbow_scratch_nctx128_ntgt128 task    8   4     23.0   23.0  50.1   0.459    2.56    0.16480    0.16076    0.04098  0.04294  0.86215

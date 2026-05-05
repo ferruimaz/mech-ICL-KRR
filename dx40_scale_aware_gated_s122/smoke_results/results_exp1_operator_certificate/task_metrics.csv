@@ -1,0 +1,2 @@
+episode,model_key,checkpoint,mse_model_true,mse_krr_true,ratio_model_krr,mse_model_krr,rel_model_krr_norm,rel_model_true_norm,krr_pred_norm,model_pred_norm
+0,dx40,/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122/minimal_scale_canonical_single_dx40_tau16_am2p0_2p0_inv_rank_bs16_ga1_150000_s122.best.pt,0.10100987284578385,0.12318007543393855,0.8200179492498803,0.0038970126766212673,0.07301471096269083,0.2780125876265067,1.4808673783757615,1.5171748543194226

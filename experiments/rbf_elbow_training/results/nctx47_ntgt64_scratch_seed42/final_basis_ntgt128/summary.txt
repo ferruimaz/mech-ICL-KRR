@@ -1,0 +1,15 @@
+RBF final-state basis diagnostic
+
+checkpoint=/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/rbf_elbow_training/results/nctx47_ntgt64_scratch_seed42/checkpoint_final.pt, episodes=16, ell=3.0, sigma2=0.1, rank_tau=0.01
+
+basis      rank     rT    E(TQ,T)    E(F,TQ)     E(F,T)
+raw           0  30.56    1.00000    1.00083    0.03958
+raw          10  30.56    0.20474    0.19878    0.03958
+raw          15  30.56    0.14705    0.14043    0.03958
+raw          16  30.56    0.13574    0.12983    0.03958
+raw           5  30.56    0.34258    0.33860    0.03958
+response      0  30.56    1.00000    1.00083    0.03958
+response     10  30.56    0.19774    0.19124    0.03958
+response     15  30.56    0.14964    0.14457    0.03958
+response     16  30.56    0.14292    0.13842    0.03958
+response      5  30.56    0.34613    0.34186    0.03958

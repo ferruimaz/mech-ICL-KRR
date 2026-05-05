@@ -1,0 +1,22 @@
+dx40 prediction-risk-rank analysis
+
+Definition:
+  r_T is the smallest rank whose discarded task-operator energy is at most
+  5% of the KRR posterior risk. The old 1% relative-tail rank is reported as
+  r_T_strict.
+
+All 16 episodes:
+  dim=29.25, r_T=19.81, r_T_strict=32.44, dim/r_T=2.91
+  E(TQ,T)=0.13741, E(F,T)=98.67662, MSE/KRR=2428.685
+
+Filtered to non-catastrophic episodes, E(F,T)<10, n=14:
+  dim=26.71, r_T=21.86, r_T_strict=32.71, dim/r_T=1.27
+  E(TQ,T)=0.15704, E(F,T)=0.12346, MSE/KRR=1.178
+
+Interpretation:
+  The old strict rank made dx40 look more rank-deficient than it is for
+  prediction. Under the prediction-risk rank, the causal native subspace is
+  usually large enough or larger than the prediction-relevant rank. The main
+  dx40 failure that remains is not simply missing enough Q directions: the
+  model-to-KRR map is nontrivially wrong on ordinary episodes and catastrophically
+  wrong on two sampled geometries even when dim(Q)=47 and E(TQ,T)=0.

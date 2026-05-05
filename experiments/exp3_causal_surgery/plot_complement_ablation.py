@@ -82,7 +82,7 @@ def make_plot(summary_csv: Path, out_path: Path) -> None:
 
     fig, axes = plt.subplots(1, 2, figsize=(5.8, 2.55), constrained_layout=True)
     panel(axes[0], summary, "E_F_T_mean", r"$E_{\mathrm{task}}(F,T)$")
-    panel(axes[1], summary, "point_err_mean", "pointwise error vs. KRR")
+    panel(axes[1], summary, "point_err_mean", "relative KRR prediction error")
     axes[0].set_ylabel("relative error")
     fig.suptitle(r"Whole-subspace intervention at residual state $s=1$", x=0.01, ha="left", fontsize=10)
 

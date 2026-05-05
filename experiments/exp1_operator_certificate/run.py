@@ -624,7 +624,7 @@ def plot_rank_curves(rows: Sequence[Dict[str, object]], path: Path) -> None:
     probe_kinds = sorted({str(r["probe_kind"]) for r in rows})
     bases = sorted({str(r["basis"]) for r in rows})
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), sharey=False)
-    metrics = [("E_operator_to_T", "operator to KRR"), ("E_model_to_operator", "model to Galerkin")]
+    metrics = [("E_operator_to_T", "operator to KRR"), ("E_model_to_operator", "model to T_Q")]
     for ax, (metric, title) in zip(axes, metrics):
         for probe_kind in probe_kinds:
             for basis in bases:
@@ -742,7 +742,7 @@ def plot_actlr_comparison(rows: Sequence[Dict[str, object]], path: Path) -> None
     ]:
         tq_vals = [np.mean([float(r[metric_tq]) for r in subset]) for _, _, subset in groups]
         act_vals = [np.mean([float(r[metric_act]) for r in subset]) for _, _, subset in groups]
-        ax.bar(x - width / 2, tq_vals, width, label="Galerkin T_Q")
+        ax.bar(x - width / 2, tq_vals, width, label="T_Q")
         ax.bar(x + width / 2, act_vals, width, label="actLR")
         ax.set_title(title)
         ax.set_xticks(x)

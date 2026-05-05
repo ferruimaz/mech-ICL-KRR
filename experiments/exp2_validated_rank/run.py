@@ -23,8 +23,9 @@ stream after layer ell, the remaining model is rolled forward, and the direction
 is kept only if it causes held-out finite-difference response damage above a
 predeclared threshold.
 
-After selecting all s_ell, the script freezes the native reachable space and
-evaluates the same Galerkin operator metrics as the original Experiment 2.
+After selecting all s_ell, the script freezes either the seed space
+span(S_0,...,S_L) or the older A-reachable space, and evaluates the same
+Galerkin operator metrics as the original Experiment 2.
 """
 
 from __future__ import annotations
@@ -58,6 +59,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from support import get_device, set_seed
+from experiments.shared.support import compute_kernel
 
 # Reuse the original Experiment 2 mechanics without modifying it.
 from experiments.exp2_budget_closure.run import (  # noqa: E402
@@ -70,6 +72,7 @@ from experiments.exp2_budget_closure.run import (  # noqa: E402
     a_project,
     a_residual,
     build_kernels,
+    effective_rank_T_excess_risk,
     effective_rank_T_task,
     eval_operator_error,
     forward_with_ctx_hidden,
@@ -85,6 +88,12 @@ from experiments.exp2_budget_closure.run import (  # noqa: E402
     sample_probes,
     sample_task_probes,
 )
+
+
+CHECKPOINTS_RBF: List[CkptCfg] = [
+    CkptCfg("rbf_l3", "model_rbf_fixed_l3.pt", 5, 128, 8, 4, "rbf", 3.0),
+    CkptCfg("rbf_l3_smoke", "model_rbf_fixed_l3_smoke.pt", 5, 128, 8, 4, "rbf", 3.0),
+]
 
 
 def a_norm_fro_sq(M: torch.Tensor, A: torch.Tensor) -> float:
@@ -105,6 +114,43 @@ def spectral_soft_ranks(svals: torch.Tensor) -> Dict[str, float]:
     p = e / e.sum()
     entropy = float(torch.exp(-(p * torch.log(p.clamp_min(FLOOR))).sum()))
     return {"participation_rank": participation, "entropy_rank": entropy}
+
+
+def seed_basis(
+    A: torch.Tensor,
+    A_sqrt: torch.Tensor,
+    A_invsqrt: torch.Tensor,
+    S_list: Sequence[torch.Tensor],
+    final_k: int,
+    tau_subspace: float,
+) -> torch.Tensor:
+    n = A.shape[0]
+    if final_k < 0:
+        return torch.zeros(n, 0, dtype=torch.float64)
+
+    cols = [S for S in S_list[: final_k + 1] if S.numel() > 0 and S.shape[1] > 0]
+    if not cols:
+        return torch.zeros(n, 0, dtype=torch.float64)
+
+    M = torch.cat(cols, dim=1)
+    Q, _ = a_orth_basis_from_cols(M, A_sqrt, A_invsqrt, tau_rel=tau_subspace, rmax=n)
+    return Q.contiguous()
+
+
+def layer_span_basis(
+    A: torch.Tensor,
+    A_sqrt: torch.Tensor,
+    A_invsqrt: torch.Tensor,
+    S_list: Sequence[torch.Tensor],
+    final_k: int,
+    tau_subspace: float,
+    span_mode: str,
+) -> torch.Tensor:
+    if span_mode == "seed":
+        return seed_basis(A, A_sqrt, A_invsqrt, S_list, final_k, tau_subspace)
+    if span_mode == "reachable":
+        return reachable_basis(A, A_sqrt, A_invsqrt, S_list, final_k, tau_subspace)
+    raise ValueError(f"unknown span_mode: {span_mode}")
 
 
 def select_rank_by_validation(
@@ -349,6 +395,7 @@ def closure_and_refinement(
     S_list: Sequence[torch.Tensor],
     M_layers: Sequence[torch.Tensor],
     tau_subspace: float,
+    span_mode: str,
 ) -> Tuple[List[float], List[float]]:
     L = len(M_layers) - 1
     n = A.shape[0]
@@ -359,7 +406,7 @@ def closure_and_refinement(
         M_k = M_layers[k]
         denom = a_norm_fro(M_k, A) + FLOOR
 
-        Q_k = reachable_basis(A, A_sqrt, A_invsqrt, S_list, k, tau_subspace)
+        Q_k = layer_span_basis(A, A_sqrt, A_invsqrt, S_list, k, tau_subspace, span_mode)
         residual = a_residual(Q_k, M_k, A)
         closure.append(a_norm_fro(residual, A) / denom)
 
@@ -367,7 +414,7 @@ def closure_and_refinement(
             refinement.append(0.0)
             continue
 
-        Q_prev = reachable_basis(A, A_sqrt, A_invsqrt, S_list, k - 1, tau_subspace)
+        Q_prev = layer_span_basis(A, A_sqrt, A_invsqrt, S_list, k - 1, tau_subspace, span_mode)
         if Q_prev.shape[1] == 0:
             refinement.append(0.0)
             continue
@@ -405,6 +452,7 @@ def build_validated_native_basis(
     causal_eps: float = 1e-3,
     causal_damage_tau: float = 0.01,
     causal_max_keep: int = 0,
+    span_mode: str = "seed",
 ) -> Dict[str, object]:
     A_sqrt, A_invsqrt = psd_sqrt_and_invsqrt(A)
     L = len(M_build_layers) - 1
@@ -424,10 +472,15 @@ def build_validated_native_basis(
             raise ValueError("causal mode requires causal_probes and causal_fd_base")
 
     for ell in range(L + 1):
-        if ell > 0:
-            Q_pre = reachable_basis(A, A_sqrt, A_invsqrt, S_list, ell - 1, tau_subspace)
-        else:
-            Q_pre = torch.zeros(n, 0, dtype=torch.float64)
+        Q_pre = layer_span_basis(
+            A,
+            A_sqrt,
+            A_invsqrt,
+            S_list,
+            ell - 1,
+            tau_subspace,
+            span_mode,
+        )
 
         N_build = a_residual(Q_pre, M_build_layers[ell], A)
         N_val = a_residual(Q_pre, M_val_layers[ell], A)
@@ -508,8 +561,13 @@ def build_validated_native_basis(
             }
         )
 
-    Q_nat = reachable_basis(A, A_sqrt, A_invsqrt, S_list, L, tau_subspace)
-    B_nat = int(sum(s_list[ell] * (L - ell + 1) for ell in range(L + 1)))
+    Q_nat = layer_span_basis(A, A_sqrt, A_invsqrt, S_list, L, tau_subspace, span_mode)
+    if span_mode == "seed":
+        B_nat = int(sum(s_list))
+    elif span_mode == "reachable":
+        B_nat = int(sum(s_list[ell] * (L - ell + 1) for ell in range(L + 1)))
+    else:
+        raise ValueError(f"unknown span_mode: {span_mode}")
 
     build_closure, build_refinement = closure_and_refinement(
         A,
@@ -518,6 +576,7 @@ def build_validated_native_basis(
         S_list,
         M_build_layers,
         tau_subspace,
+        span_mode,
     )
     val_closure, val_refinement = closure_and_refinement(
         A,
@@ -526,6 +585,7 @@ def build_validated_native_basis(
         S_list,
         M_val_layers,
         tau_subspace,
+        span_mode,
     )
 
     return {
@@ -590,6 +650,7 @@ def summarize(rows: List[Dict[str, object]], group_keys: List[str]) -> List[Dict
 def write_summary(path: Path, summary: List[Dict[str, object]], args: argparse.Namespace) -> None:
     lines = ["Experiment 2 Validated Native Rank", ""]
     lines.append(f"selection_mode={args.selection_mode}")
+    lines.append(f"span_mode={args.span_mode}")
     lines.append(
         f"episodes={args.episodes}, n_build={args.n_build}, n_val={args.n_val}, "
         f"n_eval={args.n_eval}, gamma={args.gamma}, min_explainable_frac={args.min_explainable_frac}"
@@ -601,13 +662,14 @@ def write_summary(path: Path, summary: List[Dict[str, object]], args: argparse.N
         )
     lines.append(
         f"n_ctx={args.n_ctx}, n_tgt={args.n_tgt}, sigma2={args.sigma2}, "
-        f"tau_sv={args.tau_sv}, tau_subspace={args.tau_subspace}"
+        f"tau_sv={args.tau_sv}, tau_subspace={args.tau_subspace}, "
+        f"excess_risk_frac={args.excess_risk_frac}"
     )
     lines.append("")
     lines.append(
         f"{'name':6s} {'probe':5s} {'L':3s} {'H':3s} {'B_nat':8s} {'dim':6s} "
-        f"{'rT':5s} {'dim/rT':7s} {'mean_s':7s} {'E(TQ,T)':10s} "
-        f"{'E(F,TQ)':10s} {'E(F,T)':10s} {'valClos':8s} {'maxDmg':8s}"
+        f"{'rT':5s} {'rStrict':7s} {'dim/rT':7s} {'mean_s':7s} {'E(TQ,T)':10s} "
+        f"{'E(F,TQ)':10s} {'E(F,T)':10s} {'MSE/KRR':9s} {'valClos':8s} {'maxDmg':8s}"
     )
 
     for row in sorted(
@@ -620,6 +682,7 @@ def write_summary(path: Path, summary: List[Dict[str, object]], args: argparse.N
     ):
         dim = float(row.get("dim_R_nat_mean", float("nan")))
         r_t = float(row.get("r_eff_T_task_mean", float("nan")))
+        r_strict = float(row.get("r_eff_T_task_strict_mean", float("nan")))
         ratio = dim / r_t if math.isfinite(dim) and math.isfinite(r_t) and r_t > 0 else float("nan")
         lines.append(
             f"{str(row['checkpoint']):6s} {str(row['probe_kind']):5s} "
@@ -628,11 +691,13 @@ def write_summary(path: Path, summary: List[Dict[str, object]], args: argparse.N
             f"{row.get('B_nat_mean', float('nan')):8.1f} "
             f"{dim:6.1f} "
             f"{r_t:5.1f} "
+            f"{r_strict:7.1f} "
             f"{ratio:7.3f} "
             f"{row.get('mean_s_mean', float('nan')):7.2f} "
             f"{row.get('E_TQ_T_mean', float('nan')):10.5f} "
             f"{row.get('E_F_TQ_mean', float('nan')):10.5f} "
             f"{row.get('E_F_T_mean', float('nan')):10.5f} "
+            f"{row.get('mse_ratio_mean', float('nan')):9.3f} "
             f"{row.get('max_val_closure_mean', float('nan')):8.5f} "
             f"{row.get('max_causal_damage_mean', float('nan')):8.5f}"
         )
@@ -648,6 +713,7 @@ def plot_summary(summary: List[Dict[str, object]], out_path: Path, probe_kind: s
     fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0))
 
     ax = axes[0]
+    label_counts: Dict[Tuple[float, float], int] = defaultdict(int)
     for row in rows:
         r_t = float(row.get("r_eff_T_task_mean", float("nan")))
         dim = float(row.get("dim_R_nat_mean", float("nan")))
@@ -656,27 +722,134 @@ def plot_summary(summary: List[Dict[str, object]], out_path: Path, probe_kind: s
         x = dim / r_t
         y = float(row.get("E_TQ_T_mean", float("nan")))
         ax.scatter(x, y, s=55)
-        ax.text(x * 1.01, y + 0.01, str(row["checkpoint"]), fontsize=7)
+        key = (round(x, 4), round(y, 4))
+        label_idx = label_counts[key]
+        label_counts[key] += 1
+        ax.annotate(
+            str(row["checkpoint"]),
+            (x, y),
+            xytext=(4, 4 + 8 * label_idx),
+            textcoords="offset points",
+            fontsize=7,
+        )
     ax.axvline(1.0, color="black", linestyle="--", linewidth=1, alpha=0.7)
-    ax.set_xlabel("dim_R_nat / r_T")
-    ax.set_ylabel("E(T_Qnat,T)")
-    ax.set_title(f"Validated-rank Galerkin adequacy ({probe_kind})")
+    ax.set_xlabel("d_lay / r_T")
+    ax.set_ylabel("E(T_Q,T)")
+    ax.set_title(f"Reduced-operator error ({probe_kind})")
+    ax.margins(x=0.06, y=0.18)
     ax.grid(True, alpha=0.25)
 
     ax = axes[1]
+    label_counts = defaultdict(int)
     for row in rows:
         x = float(row.get("mean_s_mean", float("nan")))
         y = float(row.get("max_val_closure_mean", float("nan")))
         ax.scatter(x, y, s=55)
-        ax.text(x * 1.01, y + 0.005, str(row["checkpoint"]), fontsize=7)
-    ax.set_xlabel("mean selected s_l")
+        key = (round(x, 4), round(y, 4))
+        label_idx = label_counts[key]
+        label_counts[key] += 1
+        ax.annotate(
+            str(row["checkpoint"]),
+            (x, y),
+            xytext=(4, 4 + 8 * label_idx),
+            textcoords="offset points",
+            fontsize=7,
+        )
+    ax.set_xlabel("mean selected layer")
     ax.set_ylabel("max held-out closure defect")
     ax.set_title("Hidden-response validation")
+    ax.margins(x=0.06, y=0.18)
     ax.grid(True, alpha=0.25)
 
     fig.subplots_adjust(left=0.08, right=0.98, bottom=0.15, top=0.88, wspace=0.32)
     fig.savefig(out_path, dpi=160)
     plt.close(fig)
+
+
+def sample_rbf_episode(
+    cfg: CkptCfg,
+    args: argparse.Namespace,
+    device: torch.device,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    total = args.n_ctx + args.n_tgt
+    X = torch.randn(1, total, cfg.d_x)
+    K_full = compute_kernel(
+        X,
+        X,
+        "rbf",
+        args.kernel_lengthscale,
+        args.kernel_signal_var,
+    ).double()
+    jitter = args.kernel_jitter * torch.eye(total, dtype=torch.float64).unsqueeze(0)
+    L = torch.linalg.cholesky(K_full + jitter)
+    f = (L @ torch.randn(1, total, 1, dtype=torch.float64)).squeeze(-1)
+    y_ctx = f[:, : args.n_ctx] + torch.randn(1, args.n_ctx, dtype=torch.float64) * (args.sigma2 ** 0.5)
+    y_tgt = f[:, args.n_ctx :]
+    return (
+        X[:, : args.n_ctx, :].to(device=device, dtype=torch.float32),
+        y_ctx.to(device=device, dtype=torch.float32),
+        X[:, args.n_ctx :, :].to(device=device, dtype=torch.float32),
+        y_tgt.to(device=device, dtype=torch.float32),
+    )
+
+
+def sample_eval_episode(
+    cfg: CkptCfg,
+    args: argparse.Namespace,
+    device: torch.device,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    if args.kernel_family == "linear":
+        return sample_episode(cfg, args.sigma2, args.n_ctx, args.n_tgt, device)
+    if args.kernel_family == "rbf":
+        return sample_rbf_episode(cfg, args, device)
+    raise ValueError(f"unknown kernel_family: {args.kernel_family}")
+
+
+def build_eval_kernels(
+    x_ctx: torch.Tensor,
+    x_tgt: torch.Tensor,
+    args: argparse.Namespace,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    if args.kernel_family == "linear":
+        return build_kernels(x_ctx, x_tgt, args.sigma2)
+    if args.kernel_family != "rbf":
+        raise ValueError(f"unknown kernel_family: {args.kernel_family}")
+
+    xc = x_ctx[0].detach().cpu().double()
+    xt = x_tgt[0].detach().cpu().double()
+    K = compute_kernel(
+        xc.unsqueeze(0),
+        xc.unsqueeze(0),
+        "rbf",
+        args.kernel_lengthscale,
+        args.kernel_signal_var,
+    ).squeeze(0).double()
+    Kt = compute_kernel(
+        xt.unsqueeze(0),
+        xc.unsqueeze(0),
+        "rbf",
+        args.kernel_lengthscale,
+        args.kernel_signal_var,
+    ).squeeze(0).double()
+    eye = torch.eye(K.shape[0], dtype=torch.float64)
+    A = K + args.sigma2 * eye
+    T = Kt @ torch.linalg.solve(A, eye)
+    return K, Kt, A, T
+
+
+def build_eval_target_kernel(x_tgt: torch.Tensor, args: argparse.Namespace) -> torch.Tensor:
+    xt = x_tgt[0].detach().cpu().double()
+    if args.kernel_family == "linear":
+        return xt @ xt.T
+    if args.kernel_family != "rbf":
+        raise ValueError(f"unknown kernel_family: {args.kernel_family}")
+    return compute_kernel(
+        xt.unsqueeze(0),
+        xt.unsqueeze(0),
+        "rbf",
+        args.kernel_lengthscale,
+        args.kernel_signal_var,
+    ).squeeze(0).double()
 
 
 def checkpoint_list(args: argparse.Namespace) -> List[CkptCfg]:
@@ -685,6 +858,8 @@ def checkpoint_list(args: argparse.Namespace) -> List[CkptCfg]:
         cfgs.extend(CHECKPOINTS_2A)
     if args.exp in ("2b", "both"):
         cfgs.extend(CHECKPOINTS_2B)
+    if args.exp == "rbf":
+        cfgs.extend(CHECKPOINTS_RBF)
 
     if args.checkpoints:
         wanted = {x.strip() for x in args.checkpoints.split(",") if x.strip()}
@@ -708,17 +883,16 @@ def process_checkpoint(
     layer_records: List[Dict[str, object]] = []
 
     for ep in range(args.episodes):
-        x_ctx, y_ctx, x_tgt, y_tgt = sample_episode(
+        x_ctx, y_ctx, x_tgt, y_tgt = sample_eval_episode(
             cfg,
-            args.sigma2,
-            args.n_ctx,
-            args.n_tgt,
+            args,
             device,
         )
         y = y_ctx[0].detach().cpu().double()
         y_tgt_cpu = y_tgt[0].detach().cpu().double()
 
-        _K, Kt, A, T = build_kernels(x_ctx, x_tgt, args.sigma2)
+        _K, Kt, A, T = build_eval_kernels(x_ctx, x_tgt, args)
+        Ktt = build_eval_target_kernel(x_tgt, args)
         Ty = T @ y
 
         F_y, _ = forward_with_ctx_hidden(model, x_ctx, y, x_tgt)
@@ -761,6 +935,7 @@ def process_checkpoint(
             causal_eps=args.eps,
             causal_damage_tau=args.causal_damage_tau,
             causal_max_keep=args.causal_max_keep,
+            span_mode=args.span_mode,
         )
         Q_nat: torch.Tensor = native["Q_nat"]  # type: ignore[assignment]
         T_Q = Kt @ Q_nat @ Q_nat.T if Q_nat.shape[1] else torch.zeros_like(T)
@@ -772,7 +947,9 @@ def process_checkpoint(
         val_refinement = [float(x) for x in native["val_refinement"]]  # type: ignore[arg-type]
         build_refinement = [float(x) for x in native["build_refinement"]]  # type: ignore[arg-type]
 
-        r_t = effective_rank_T_task(T, A, args.rank_tau)
+        r_t_strict = effective_rank_T_task(T, A, args.rank_tau)
+        risk_rank = effective_rank_T_excess_risk(T, A, Kt, Ktt, args.excess_risk_frac)
+        r_t = int(risk_rank["r_eff_T_task"])
         B_nat = int(native["B_nat"])
         dim_R = int(native["dim_R_nat"])
         mean_s = float(np.mean(s_list)) if s_list else 0.0
@@ -795,6 +972,11 @@ def process_checkpoint(
                     "n_layers": cfg.n_layers,
                     "n_heads": cfg.n_heads,
                     "selection_mode": args.selection_mode,
+                    "span_mode": args.span_mode,
+                    "kernel_family": args.kernel_family,
+                    "kernel_lengthscale": args.kernel_lengthscale if args.kernel_family == "rbf" else float("nan"),
+                    "kernel_signal_var": args.kernel_signal_var if args.kernel_family == "rbf" else float("nan"),
+                    "excess_risk_frac": args.excess_risk_frac,
                     "gamma": args.gamma,
                     "min_explainable_frac": args.min_explainable_frac,
                     "n_causal": args.n_causal if args.selection_mode == "causal" else 0,
@@ -830,6 +1012,10 @@ def process_checkpoint(
                 "episode": ep,
                 "probe_kind": kind,
                 "selection_mode": args.selection_mode,
+                "span_mode": args.span_mode,
+                "kernel_family": args.kernel_family,
+                "kernel_lengthscale": args.kernel_lengthscale if args.kernel_family == "rbf" else float("nan"),
+                "kernel_signal_var": args.kernel_signal_var if args.kernel_family == "rbf" else float("nan"),
                 "gamma": args.gamma,
                 "min_explainable_frac": args.min_explainable_frac,
                 "n_causal": args.n_causal if args.selection_mode == "causal" else 0,
@@ -843,7 +1029,10 @@ def process_checkpoint(
                 "dim_R_nat": dim_R,
                 "dim_over_nctx": dim_R / A.shape[0],
                 "dim_over_rT": dim_R / r_t if r_t > 0 else float("nan"),
+                "dim_over_rT_strict": dim_R / r_t_strict if r_t_strict > 0 else float("nan"),
                 "r_eff_T_task": r_t,
+                "r_eff_T_task_strict": r_t_strict,
+                "excess_risk_frac": args.excess_risk_frac,
                 "mean_s": mean_s,
                 "mean_hidden_s": mean_hidden_s,
                 "sum_candidate_rank": int(sum(candidate_ranks)),
@@ -867,13 +1056,14 @@ def process_checkpoint(
                 "s_list": json.dumps(s_list),
                 "candidate_ranks": json.dumps(candidate_ranks),
             }
+            rec.update(risk_rank)
             rec.update(base_metrics)
             records.append(rec)
 
             print(
                 f"  {cfg.name:5s} ep={ep+1:03d}/{args.episodes} probe={kind:4s} "
-                f"mode={args.selection_mode:6s} B={B_nat:4d} dim={dim_R:2d}/{A.shape[0]} "
-                f"mean_s={mean_s:.2f} E(TQ,T)={E_TQ_T:.5f} "
+                f"mode={args.selection_mode:6s}/{args.span_mode:9s} B={B_nat:4d} dim={dim_R:2d}/{A.shape[0]} "
+                f"rT={r_t:2d} strict={r_t_strict:2d} mean_s={mean_s:.2f} E(TQ,T)={E_TQ_T:.5f} "
                 f"E(F,TQ)={E_F_TQ:.5f} E(F,T)={E_F_T:.5f} "
                 f"maxValClos={max(val_closure):.4f} maxDmg={causal_max_damage:.4f}",
                 flush=True,
@@ -885,6 +1075,17 @@ def process_checkpoint(
 def run(args: argparse.Namespace) -> None:
     results_dir = Path(args.results_dir)
     results_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.kernel_family == "auto":
+        args.kernel_family = "rbf" if args.exp == "rbf" else "linear"
+    if args.exp == "rbf" and args.kernel_family != "rbf":
+        raise ValueError("--exp rbf requires --kernel-family rbf or auto")
+    if args.kernel_lengthscale <= 0.0:
+        raise ValueError("--kernel-lengthscale must be positive")
+    if args.kernel_signal_var <= 0.0:
+        raise ValueError("--kernel-signal-var must be positive")
+    if args.kernel_jitter < 0.0:
+        raise ValueError("--kernel-jitter must be nonnegative")
 
     device = get_device() if args.device == "auto" else torch.device(args.device)
     set_seed(args.seed)
@@ -904,7 +1105,7 @@ def run(args: argparse.Namespace) -> None:
 
     print("=== Experiment 2: Validated Native Rank ===", flush=True)
     print(
-        f"device={device} mode={args.selection_mode} gamma={args.gamma} "
+        f"device={device} mode={args.selection_mode} span={args.span_mode} gamma={args.gamma} "
         f"causal_tau={args.causal_damage_tau} checkpoints={[cfg.name for cfg in cfgs]}",
         flush=True,
     )
@@ -931,10 +1132,19 @@ def run(args: argparse.Namespace) -> None:
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Experiment 2 validated native rank")
-    parser.add_argument("--exp", choices=["2a", "2b", "both"], default="2b")
+    parser.add_argument("--exp", choices=["2a", "2b", "rbf", "both"], default="2b")
     parser.add_argument("--checkpoints", default="", help="Comma-separated checkpoint names/files to include.")
     parser.add_argument("--results-dir", default=str(SCRIPT_DIR / "results"))
     parser.add_argument("--selection-mode", choices=["hidden", "causal"], default="hidden")
+    parser.add_argument(
+        "--span-mode",
+        choices=["seed", "reachable"],
+        default="seed",
+        help=(
+            "Final layerwise span. 'seed' uses span(S_0,...,S_L). "
+            "'reachable' also includes powers A^t S_ell."
+        ),
+    )
     parser.add_argument("--probe-kind", choices=["task", "iso", "both"], default="task")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default="auto")
     parser.add_argument("--seed", type=int, default=42)
@@ -942,13 +1152,34 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--n-ctx", type=int, default=47)
     parser.add_argument("--n-tgt", type=int, default=16)
     parser.add_argument("--sigma2", type=float, default=0.1)
+    parser.add_argument("--kernel-family", choices=["auto", "linear", "rbf"], default="auto")
+    parser.add_argument("--kernel-lengthscale", type=float, default=3.0)
+    parser.add_argument("--kernel-signal-var", type=float, default=1.0)
+    parser.add_argument("--kernel-jitter", type=float, default=1e-5)
     parser.add_argument("--n-build", type=int, default=8)
     parser.add_argument("--n-val", type=int, default=16)
     parser.add_argument("--n-eval", type=int, default=16)
     parser.add_argument("--eps", type=float, default=1e-3)
     parser.add_argument("--tau-sv", type=float, default=1e-3)
     parser.add_argument("--tau-subspace", type=float, default=1e-9)
-    parser.add_argument("--rank-tau", type=float, default=1e-2)
+    parser.add_argument(
+        "--rank-tau",
+        type=float,
+        default=1e-2,
+        help=(
+            "Tail RMS tolerance for task-visible rank: smallest r with "
+            "sqrt(sum_{i>r} s_i^2 / sum_i s_i^2) <= rank_tau."
+        ),
+    )
+    parser.add_argument(
+        "--excess-risk-frac",
+        type=float,
+        default=0.05,
+        help=(
+            "Prediction-risk rank tolerance: smallest r whose discarded operator "
+            "energy is at most this fraction of the KRR posterior risk."
+        ),
+    )
     parser.add_argument("--gamma", type=float, default=0.95)
     parser.add_argument("--min-explainable-frac", type=float, default=1e-3)
     parser.add_argument("--n-causal", type=int, default=8)

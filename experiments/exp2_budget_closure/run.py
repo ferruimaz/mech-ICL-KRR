@@ -541,18 +541,71 @@ def mse_and_pointwise(
     }
 
 
-def effective_rank_from_svals(svals: torch.Tensor, tau: float) -> int:
+def effective_rank_from_svals(svals: torch.Tensor, eps: float) -> int:
     if svals.numel() == 0:
         return 0
-    smax = float(svals.max())
-    if smax <= 0:
+    energy = (svals.double() ** 2).clamp_min(0.0)
+    total = float(energy.sum())
+    if total <= FLOOR:
         return 0
-    return int((svals >= tau * smax).sum().item())
+    tol = max(float(eps), 0.0)
+    for r in range(energy.numel() + 1):
+        tail = float(energy[r:].sum()) if r < energy.numel() else 0.0
+        if math.sqrt(tail / (total + FLOOR)) <= tol:
+            return int(r)
+    return int(energy.numel())
 
 
-def effective_rank_T_task(T: torch.Tensor, A: torch.Tensor, tau: float) -> int:
+def effective_rank_from_tail_budget(svals: torch.Tensor, tail_budget: float) -> int:
+    if svals.numel() == 0:
+        return 0
+    energy = (svals.double() ** 2).clamp_min(0.0)
+    budget = max(float(tail_budget), 0.0)
+    for r in range(energy.numel() + 1):
+        tail = float(energy[r:].sum()) if r < energy.numel() else 0.0
+        if tail <= budget + FLOOR:
+            return int(r)
+    return int(energy.numel())
+
+
+def task_operator_svals(T: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
     A_sqrt, _ = psd_sqrt_and_invsqrt(A)
-    return effective_rank_from_svals(torch.linalg.svdvals(T @ A_sqrt), tau)
+    return torch.linalg.svdvals(T @ A_sqrt)
+
+
+def effective_rank_T_task(T: torch.Tensor, A: torch.Tensor, eps: float) -> int:
+    return effective_rank_from_svals(task_operator_svals(T, A), eps)
+
+
+def krr_posterior_risk_total(Ktt: torch.Tensor, Kt: torch.Tensor, A: torch.Tensor) -> float:
+    sol = torch.linalg.solve(A, Kt.T)
+    posterior = Ktt - Kt @ sol
+    return max(float(torch.trace(posterior)), 0.0)
+
+
+def effective_rank_T_excess_risk(
+    T: torch.Tensor,
+    A: torch.Tensor,
+    Kt: torch.Tensor,
+    Ktt: torch.Tensor,
+    excess_risk_frac: float,
+) -> Dict[str, float]:
+    svals = task_operator_svals(T, A)
+    signal_total = float(((svals.double() ** 2).clamp_min(0.0)).sum())
+    risk_total = krr_posterior_risk_total(Ktt, Kt, A)
+    tail_budget = max(float(excess_risk_frac), 0.0) * risk_total
+    rank = effective_rank_from_tail_budget(svals, tail_budget)
+    tau_equiv = math.sqrt(tail_budget / (signal_total + FLOOR)) if signal_total > FLOOR else 0.0
+    n_tgt = max(int(Ktt.shape[0]), 1)
+    return {
+        "r_eff_T_task": float(rank),
+        "rank_tau_task": float(tau_equiv),
+        "krr_risk_total": float(risk_total),
+        "krr_signal_total": float(signal_total),
+        "krr_risk_per_tgt": float(risk_total / n_tgt),
+        "krr_signal_per_tgt": float(signal_total / n_tgt),
+        "krr_risk_over_signal": float(risk_total / (signal_total + FLOOR)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -581,6 +634,8 @@ def process_checkpoint(
         y_tgt_cpu = y_tgt[0].detach().cpu().double()
 
         _K, Kt, A, T = build_kernels(x_ctx, x_tgt, args.sigma2)
+        xt = x_tgt[0].detach().cpu().double()
+        Ktt = xt @ xt.T
         Ty = T @ y
 
         F_y, _ = forward_with_ctx_hidden(model, x_ctx, y, x_tgt)
@@ -599,7 +654,9 @@ def process_checkpoint(
         Q_nat: torch.Tensor = native["Q_nat"]  # type: ignore[assignment]
         T_Q = Kt @ Q_nat @ Q_nat.T if Q_nat.shape[1] else torch.zeros_like(T)
 
-        rT = effective_rank_T_task(T, A, args.rank_tau)
+        rT_strict = effective_rank_T_task(T, A, args.rank_tau)
+        risk_rank = effective_rank_T_excess_risk(T, A, Kt, Ktt, args.excess_risk_frac)
+        rT = int(risk_rank["r_eff_T_task"])
         B_nat = int(native["B_nat"])
         dim_R = int(native["dim_R_nat"])
         s_list = native["s_list"]
@@ -637,6 +694,10 @@ def process_checkpoint(
                 "dim_R_nat": dim_R,
                 "dim_over_nctx": dim_R / A.shape[0],
                 "r_eff_T_task": rT,
+                "r_eff_T_task_strict": rT_strict,
+                "dim_over_rT": dim_R / rT if rT > 0 else float("nan"),
+                "dim_over_rT_strict": dim_R / rT_strict if rT_strict > 0 else float("nan"),
+                "excess_risk_frac": args.excess_risk_frac,
                 "E_F_T": E_F_T,
                 "E_TQ_T": E_TQ_T,
                 "E_F_TQ": E_F_TQ,
@@ -648,6 +709,7 @@ def process_checkpoint(
                 "mean_refinement": float(np.mean(refinement)),
                 "s_list": json.dumps(s_list),
             }
+            rec.update(risk_rank)
             rec.update(base_metrics)
             records.append(rec)
 
@@ -725,12 +787,13 @@ def write_summary(path: Path, summary: List[Dict], args: argparse.Namespace) -> 
     lines.append(f"episodes={args.episodes}, n_build={args.n_build}, n_eval={args.n_eval}, eps={args.eps}")
     lines.append(
         f"n_ctx={args.n_ctx}, n_tgt={args.n_tgt}, sigma2={args.sigma2}, "
-        f"smax={args.smax}, tau_sv={args.tau_sv}"
+        f"smax={args.smax}, tau_sv={args.tau_sv}, excess_risk_frac={args.excess_risk_frac}"
     )
     lines.append("")
     lines.append(
         f"{'name':6s} {'probe':5s} {'L':3s} {'H':3s} {'B_nat':8s} {'dim':6s} "
-        f"{'E(TQ,T)':10s} {'E(F,TQ)':10s} {'E(F,T)':10s} {'MSE/KRR':9s} {'maxClos':8s}"
+        f"{'rT':5s} {'rStrict':7s} {'E(TQ,T)':10s} {'E(F,TQ)':10s} "
+        f"{'E(F,T)':10s} {'MSE/KRR':9s} {'maxClos':8s}"
     )
 
     for row in sorted(
@@ -747,6 +810,8 @@ def write_summary(path: Path, summary: List[Dict], args: argparse.Namespace) -> 
             f"{row.get('n_heads_mean', float('nan')):3.0f} "
             f"{row.get('B_nat_mean', float('nan')):8.1f} "
             f"{row.get('dim_R_nat_mean', float('nan')):6.1f} "
+            f"{row.get('r_eff_T_task_mean', float('nan')):5.1f} "
+            f"{row.get('r_eff_T_task_strict_mean', float('nan')):7.1f} "
             f"{row.get('E_TQ_T_mean', float('nan')):10.5f} "
             f"{row.get('E_F_TQ_mean', float('nan')):10.5f} "
             f"{row.get('E_F_T_mean', float('nan')):10.5f} "
@@ -860,6 +925,7 @@ def run_suite_one(args: argparse.Namespace, exp: str, smax: int, out_dir: Path) 
         "--tau-sv", str(args.tau_sv),
         "--tau-subspace", str(args.tau_subspace),
         "--rank-tau", str(args.rank_tau),
+        "--excess-risk-frac", str(args.excess_risk_frac),
         "--smax", str(smax),
         "--probe-kind", args.probe_kind,
         "--device", args.device,
@@ -1163,7 +1229,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tau-sv", type=float, default=1e-3)
     parser.add_argument("--tau-subspace", type=float, default=1e-9)
     parser.add_argument("--smax", type=int, default=1)
-    parser.add_argument("--rank-tau", type=float, default=1e-2)
+    parser.add_argument(
+        "--rank-tau",
+        type=float,
+        default=1e-2,
+        help=(
+            "Tail RMS tolerance for task-visible rank: smallest r with "
+            "sqrt(sum_{i>r} s_i^2 / sum_i s_i^2) <= rank_tau."
+        ),
+    )
+    parser.add_argument(
+        "--excess-risk-frac",
+        type=float,
+        default=0.05,
+        help=(
+            "Prediction-risk rank tolerance: smallest r whose discarded operator "
+            "energy is at most this fraction of the KRR posterior risk."
+        ),
+    )
 
     return parser.parse_args()
 

@@ -1,0 +1,8 @@
+Experiment 2 final suite summary
+
+Key derived quantity: ratio = dim_R_nat / r_eff_T_task.
+
+=== 2B target-rank sweep: threshold table ===
+smax   name     rT     dim   ratio    E(TQ,T)     E(F,T)    E(F,TQ)
+   1   dx40  16.00   34.00   2.125    0.27653    0.18423    0.32709
+

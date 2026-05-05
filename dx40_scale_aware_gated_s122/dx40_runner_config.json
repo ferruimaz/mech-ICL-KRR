@@ -1,0 +1,38 @@
+{
+  "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122/minimal_scale_canonical_single_dx40_tau16_am2p0_2p0_inv_rank_bs16_ga1_150000_s122.best.pt",
+  "note": "Existing experiment modules were patched in memory only; baseline files were not modified.",
+  "repo_root": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR",
+  "runner_args": {
+    "device": "cpu",
+    "exp1_episodes": 4,
+    "exp1_n_tgt": 3,
+    "exp2_episodes": 16,
+    "exp2_n_build": 8,
+    "exp2_n_eval": 32,
+    "exp2_n_tgt": 16,
+    "exp2_probe_kind": "task",
+    "exp2_smax_list": "1,2,4",
+    "exp3_episodes": 8,
+    "exp3_layer_rule": "sweep",
+    "exp3_n_tgt": 16,
+    "log10_lambda1_max": 1.0,
+    "log10_lambda1_min": -2.0,
+    "n_ctx": 47,
+    "only": "1,2,3",
+    "results_root": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122",
+    "tau_max": 16.0,
+    "tau_min": 0.001
+  },
+  "sampler": {
+    "log10_lambda1_max": 1.0,
+    "log10_lambda1_min": -2.0,
+    "rejection_attempts": 512,
+    "smooth_span_max": 8.0,
+    "smooth_span_min": 0.0,
+    "step_depth_max": 8.0,
+    "step_depth_min": 1.0,
+    "step_rank_distribution": "inverse_rank",
+    "tau_max": 16.0,
+    "tau_min": 0.001
+  }
+}

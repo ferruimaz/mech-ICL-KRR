@@ -1,0 +1,15 @@
+RBF final-state basis diagnostic
+
+checkpoint=model_rbf_fixed_l3.pt, episodes=16, ell=3.0, sigma2=0.1, rank_tau=0.01
+
+basis      rank     rT    E(TQ,T)    E(F,TQ)     E(F,T)
+raw           0  15.31    1.00000    0.99125    0.06398
+raw          10  15.31    0.19848    0.20441    0.06398
+raw          15  15.31    0.13980    0.15054    0.06398
+raw          16  15.31    0.12894    0.14095    0.06398
+raw           5  15.31    0.33642    0.33641    0.06398
+response      0  15.31    1.00000    0.99125    0.06398
+response     10  15.31    0.19582    0.20130    0.06398
+response     15  15.31    0.15605    0.16551    0.06398
+response     16  15.31    0.15225    0.16223    0.06398
+response      5  15.31    0.32945    0.32906    0.06398

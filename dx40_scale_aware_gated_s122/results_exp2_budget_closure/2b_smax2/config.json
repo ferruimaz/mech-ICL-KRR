@@ -1,0 +1,26 @@
+{
+  "args": {
+    "device": "cpu",
+    "episodes": 16,
+    "eps": 0.001,
+    "exp": "2b",
+    "n_build": 8,
+    "n_ctx": 47,
+    "n_eval": 32,
+    "n_tgt": 16,
+    "only": "both",
+    "out_root": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/exp2_budget_closure/results",
+    "probe_kind": "task",
+    "rank_tau": 0.01,
+    "results_dir": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/dx40_scale_aware_gated_s122/results_exp2_budget_closure/2b_smax2",
+    "seed": 42,
+    "sigma2": 0.1,
+    "skip_runs": false,
+    "smax": 2,
+    "smax_list": "1,2,4",
+    "suite": false,
+    "tau_subspace": 1e-09,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}

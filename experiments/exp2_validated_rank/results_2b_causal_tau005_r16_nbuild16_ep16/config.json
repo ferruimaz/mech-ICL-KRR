@@ -2,7 +2,7 @@
   "args": {
     "causal_damage_tau": 0.05,
     "causal_max_keep": 0,
-    "checkpoints": "",
+    "checkpoints": "dx3,dx5,dx8,dx10,dx15",
     "device": "cpu",
     "episodes": 16,
     "eps": 0.001,
