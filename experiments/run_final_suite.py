@@ -136,10 +136,10 @@ def main() -> None:
             "47",
             "--n-tgt",
             "3",
-            "--r-max",
-            "9",
             "--curve-r-max",
             "20",
+            "--selection-alpha",
+            "0.05",
             "--n-build",
             "16",
             "--n-eval",
@@ -305,4 +305,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

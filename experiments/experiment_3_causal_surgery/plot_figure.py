@@ -36,8 +36,8 @@ CONTROL_ORDER = [
 
 CONTROL_LABELS = {
     "low_task": "low task\nleverage",
-    "high_iso_low_task": "iso-only\nleverage",
-    "high_variance_low_task": "variance-only\nlow task",
+    "high_iso_low_task": "isotropic\ncontrol",
+    "high_variance_low_task": "activation\ncontrol",
     "random_Q": "random\nQ subset",
     "high_task": "high task\nleverage",
 }
@@ -72,23 +72,29 @@ def make_plot(
     ylim: Tuple[float, float] = (7e-4, 1.5e2),
 ) -> None:
     rows = read_rows(records_csv)
-    colors = {1: "#4C78A8", 2: "#D55E00", 4: "#333333"}
-    offsets = {1: -0.18, 2: 0.0, 4: 0.18}
+    colors = {1: "#4477AA", 2: "#CC6677", 4: "#222222"}
+    offsets = {1: -0.17, 2: 0.0, 4: 0.17}
 
     plt.rcParams.update(
         {
-            "font.size": 9,
-            "axes.titlesize": 10,
-            "axes.labelsize": 9,
+            "font.size": 8.5,
+            "axes.titlesize": 9.5,
+            "axes.labelsize": 8.5,
             "legend.fontsize": 8,
             "xtick.labelsize": 8,
             "ytick.labelsize": 8,
             "axes.spines.top": False,
             "axes.spines.right": False,
+            "axes.linewidth": 0.8,
+            "legend.handlelength": 1.0,
+            "legend.handletextpad": 0.45,
         }
     )
 
-    fig, ax = plt.subplots(figsize=(5.6, 2.9), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(5.85, 2.8), constrained_layout=True)
+
+    ax.axvspan(3.55, 4.45, color="#CC6677", alpha=0.055, zorder=0)
+    ax.axvline(3.5, color="#bbbbbb", linewidth=0.8, linestyle=(0, (2.0, 2.0)), zorder=1)
 
     for k in (1, 2, 4):
         xs: List[float] = []
@@ -117,35 +123,36 @@ def make_plot(
             color=colors[k],
             markerfacecolor=colors[k],
             markeredgecolor="white",
-            markersize=6,
-            linewidth=1.1,
-            capsize=2.5,
+            markeredgewidth=0.7,
+            markersize=5.2,
+            linewidth=1.0,
+            elinewidth=1.15,
+            capsize=2.2,
+            capthick=1.0,
             label=rf"$k={k}$ removed",
             zorder=3,
         )
 
-    ax.axvspan(3.58, 4.42, color="#D55E00", alpha=0.08, zorder=0)
     ax.set_yscale("log")
     ax.set_ylim(*ylim)
     ax.set_xlim(-0.55, len(CONTROL_ORDER) - 0.45)
     ax.set_xticks(range(len(CONTROL_ORDER)))
     ax.set_xticklabels([CONTROL_LABELS[c] for c in CONTROL_ORDER])
-    ax.set_ylabel(ylabel)
-    ax.set_title(r"Early surgery at residual state $s=1$", loc="left")
-    ax.yaxis.grid(True, which="major", color="#dddddd", linewidth=0.7)
-    ax.yaxis.grid(True, which="minor", color="#eeeeee", linewidth=0.45)
+    ax.set_ylabel(f"{ylabel}\nmedian and IQR")
+    ax.set_title(r"Direction-removal response damage at residual state $s=1$", loc="left", pad=7)
+    ax.yaxis.grid(True, which="major", color="#d8d8d8", linewidth=0.65)
+    ax.yaxis.grid(True, which="minor", color="#eeeeee", linewidth=0.35)
     ax.xaxis.grid(False)
-    ax.legend(frameon=False, loc="upper left")
-    ax.text(
-        4,
-        9e1,
-        "task-Galerkin\ndirections",
-        ha="center",
-        va="top",
-        fontsize=8,
-        color="#8A3B00",
+    ax.tick_params(axis="both", width=0.8, length=3.5)
+    ax.tick_params(axis="y", which="minor", length=2.0)
+    ax.legend(
+        frameon=False,
+        loc="upper left",
+        bbox_to_anchor=(0.01, 0.99),
+        ncol=3,
+        borderaxespad=0.0,
+        columnspacing=1.0,
     )
-
     fig.savefig(out_path, dpi=240)
     fig.savefig(out_path.with_suffix(".pdf"))
 

@@ -1,6 +1,6 @@
 # Mechanistic ICL as Kernel Ridge Regression
 
-Code for the paper **"Operator-Level Evidence for In-Context Kernel Ridge Regression"**.
+Code for the paper **"A KRR Mechanism in In-Context Transformers"**.
 
 The final repository is organized around three paper experiments: a final-state operator
 certificate, a prediction-risk rank and layerwise availability diagnostic, and a causal direction
@@ -25,8 +25,8 @@ checkpoints/final/
   manifest.json               Final checkpoint inventory and SHA256 hashes
 
 paper/
-  operator_exposition_structured_rewrite.tex
-  operator_exposition_structured_rewrite.pdf
+  krr_mechanism.tex
+  krr_mechanism.pdf
 ```
 
 ## Setup

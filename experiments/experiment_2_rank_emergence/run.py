@@ -206,28 +206,198 @@ def make_layer_summary(
     return summarize(selected_rows, ["basis", "layer"])
 
 
-def plot_emergence(layer_summary: Sequence[Dict[str, object]], out_dir: Path) -> None:
-    for basis in sorted({str(r["basis"]) for r in layer_summary}):
+def _basis_label(basis: str) -> str:
+    return {
+        "response": "Response span",
+        "raw": "Raw residual span",
+        "combined": "Combined span",
+    }.get(basis, basis.replace("_", " ").title())
+
+
+def _as_float(value: object, default: float = float("nan")) -> float:
+    if value is None:
+        return default
+    if isinstance(value, str) and value.strip() == "":
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _summary_series(rows: Sequence[Dict[str, object]], field: str) -> List[float]:
+    return [_as_float(r.get(field)) for r in rows]
+
+
+def _mean_prediction_risk_rank(rows: Sequence[Dict[str, object]]) -> float:
+    vals = [_as_float(r.get("r_eff_T_task_mean")) for r in rows]
+    vals = [v for v in vals if math.isfinite(v)]
+    return float(np.mean(vals)) if vals else float("nan")
+
+
+def _save_plot(fig: plt.Figure, path_without_suffix: Path) -> None:
+    fig.savefig(path_without_suffix.with_suffix(".png"), dpi=200, bbox_inches="tight", pad_inches=0.04)
+    fig.savefig(path_without_suffix.with_suffix(".pdf"), bbox_inches="tight", pad_inches=0.04)
+
+
+def plot_emergence(
+    layer_summary: Sequence[Dict[str, object]],
+    out_dir: Path,
+    threshold: float = 0.05,
+) -> None:
+    plt.rcParams.update(
+        {
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "axes.titleweight": "semibold",
+            "font.size": 10,
+        }
+    )
+    basis_order = ["response", "raw", "combined"]
+    bases = [b for b in basis_order if any(str(r["basis"]) == b for r in layer_summary)]
+    bases.extend(sorted({str(r["basis"]) for r in layer_summary} - set(bases)))
+
+    for basis in bases:
         rows = sorted([r for r in layer_summary if r["basis"] == basis], key=lambda r: int(r["layer"]))
         if not rows:
             continue
         layers = [int(r["layer"]) for r in rows]
-        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-        axes[0].plot(layers, [float(r.get("op_excess_at_oracle_mean", float("nan"))) for r in rows], marker="o")
-        axes[0].axhline(0.05, color="black", linestyle="--", linewidth=1)
-        axes[0].set_xlabel("layer")
-        axes[0].set_ylabel("excess / KRR risk at risk-rank")
-        axes[0].set_title(f"{basis}: oracle-rank sufficiency")
-        axes[0].grid(True, alpha=0.25)
+        r_t = _mean_prediction_risk_rank(rows)
 
-        axes[1].plot(layers, [float(r.get("best_op_excess_mean", float("nan"))) for r in rows], marker="o")
-        axes[1].axhline(0.05, color="black", linestyle="--", linewidth=1)
+        fig, axes = plt.subplots(1, 2, figsize=(10.6, 3.8), constrained_layout=True)
+        axes[0].plot(
+            layers,
+            _summary_series(rows, "op_excess_at_oracle_mean"),
+            marker="o",
+            linewidth=2.0,
+            label=r"prefix size $r_T$",
+        )
+        axes[0].plot(
+            layers,
+            _summary_series(rows, "best_op_excess_mean"),
+            marker="s",
+            linewidth=1.8,
+            label=r"best prefix",
+        )
+        axes[0].axhline(
+            threshold,
+            color="black",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"{100 * threshold:.0f}% target",
+        )
+        axes[0].set_xlabel("layer")
+        axes[0].set_ylabel(r"excess-risk ratio $\rho_G$")
+        axes[0].set_title(r"Excess at task rank: $\rho_G(T_{Q_{\ell,r_T}})$", fontsize=11)
+        axes[0].grid(True, axis="y", alpha=0.22)
+        axes[0].legend(frameon=False, fontsize=8)
+
+        axes[1].plot(
+            layers,
+            _summary_series(rows, "rank_to_alpha_mean"),
+            marker="o",
+            linewidth=2.0,
+            label=rf"$k_\ell^{{{100 * threshold:.0f}\%}}$",
+        )
+        if math.isfinite(r_t):
+            axes[1].axhline(
+                r_t,
+                color="black",
+                linestyle="--",
+                linewidth=1.2,
+                label=rf"$r_T={r_t:.1f}$",
+            )
         axes[1].set_xlabel("layer")
-        axes[1].set_ylabel("best excess / KRR risk")
-        axes[1].set_title(f"{basis}: best prefix")
-        axes[1].grid(True, alpha=0.25)
-        fig.tight_layout()
-        fig.savefig(out_dir / f"emergence_{basis}.png", dpi=160)
+        axes[1].set_ylabel("prefix rank")
+        axes[1].set_title(r"Rank to 5% risk: $k_\ell^{5\%}$", fontsize=11)
+        axes[1].set_ylim(bottom=0)
+        axes[1].grid(True, axis="y", alpha=0.22)
+        axes[1].legend(frameon=False, fontsize=8)
+
+        _save_plot(fig, out_dir / f"emergence_{basis}")
+        plt.close(fig)
+
+    if len(bases) >= 2:
+        fig, axes = plt.subplots(1, 2, figsize=(10.6, 3.8), constrained_layout=True)
+        for basis in bases:
+            rows = sorted([r for r in layer_summary if r["basis"] == basis], key=lambda r: int(r["layer"]))
+            layers = [int(r["layer"]) for r in rows]
+            axes[0].plot(
+                layers,
+                _summary_series(rows, "op_excess_at_oracle_mean"),
+                marker="o",
+                linewidth=1.9,
+                label=_basis_label(basis),
+            )
+            axes[1].plot(
+                layers,
+                _summary_series(rows, "best_op_excess_mean"),
+                marker="o",
+                linewidth=1.9,
+                label=_basis_label(basis),
+            )
+        for ax in axes:
+            ax.axhline(
+                threshold,
+                color="black",
+                linestyle="--",
+                linewidth=1.2,
+                label=f"{100 * threshold:.0f}% target",
+            )
+            ax.set_xlabel("layer")
+            ax.set_ylabel(r"excess-risk ratio $\rho_G$")
+            ax.grid(True, axis="y", alpha=0.22)
+        axes[0].set_title(r"At task rank: $\rho_G(T_{Q_{\ell,r_T}})$", fontsize=11)
+        axes[1].set_title(r"Best prefix inside each candidate span", fontsize=11)
+        handles, labels = axes[1].get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        axes[1].legend(by_label.values(), by_label.keys(), loc="upper right", frameon=False, fontsize=8)
+        _save_plot(fig, out_dir / "emergence_basis_comparison")
+        plt.close(fig)
+
+    response_rows = sorted([r for r in layer_summary if str(r["basis"]) == "response"], key=lambda r: int(r["layer"]))
+    if response_rows:
+        layers = [int(r["layer"]) for r in response_rows]
+        fig, axes = plt.subplots(1, 2, figsize=(10.6, 3.8), constrained_layout=True)
+        axes[0].plot(
+            layers,
+            _summary_series(response_rows, "op_excess_at_oracle_mean"),
+            marker="o",
+            linewidth=2.0,
+            label=r"prefix size $r_T$",
+        )
+        axes[0].plot(
+            layers,
+            _summary_series(response_rows, "best_op_excess_mean"),
+            marker="s",
+            linewidth=1.8,
+            label=r"best prefix",
+        )
+        axes[0].axhline(
+            threshold,
+            color="black",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"{100 * threshold:.0f}% target",
+        )
+        axes[0].set_xlabel("layer")
+        axes[0].set_ylabel(r"excess-risk ratio $\rho_G$")
+        axes[0].set_title(r"Response-span KRR excess", fontsize=11)
+        axes[0].grid(True, axis="y", alpha=0.22)
+        axes[0].legend(frameon=False, fontsize=8)
+
+        axes[1].plot(
+            layers,
+            _summary_series(response_rows, "reach_alpha_mean"),
+            marker="o",
+            linewidth=2.0,
+        )
+        axes[1].set_xlabel("layer")
+        axes[1].set_ylabel("episode fraction")
+        axes[1].set_ylim(-0.03, 1.03)
+        axes[1].set_title(r"Episodes reaching $\rho_G \leq 0.05$", fontsize=11)
+        axes[1].grid(True, axis="y", alpha=0.22)
+        _save_plot(fig, out_dir / "emergence_response_reach")
         plt.close(fig)
 
 
@@ -415,7 +585,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     layer_summary = make_layer_summary(curve_rows, args)
     write_csv(out_dir / "layer_summary.csv", layer_summary)
     write_report(out_dir / "summary.txt", layer_summary, args)
-    plot_emergence(layer_summary, out_dir)
+    plot_emergence(layer_summary, out_dir, threshold=args.excess_risk_frac)
     print(out_dir / "summary.txt", flush=True)
 
 

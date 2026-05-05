@@ -2,7 +2,7 @@
 """Experiment 1: operator-Galerkin certificate.
 
 This is a direct implementation of the first experiment specified in
-`native_operator_galerkin_paper.tex`.
+`paper/krr_mechanism.tex`.
 
 For each episode and probe distribution it:
   * freezes the geometry and exact KRR operator T = K_t (K + sigma^2 I)^-1,
@@ -58,7 +58,7 @@ FLOOR = 1e-12
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run Experiment 1 from native_operator_galerkin_paper.tex"
+        description="Run Experiment 1 from paper/krr_mechanism.tex"
     )
     parser.add_argument("--model-key", choices=sorted(MODELS), default="standard")
     parser.add_argument("--checkpoint", default=None)
@@ -75,9 +75,19 @@ def parse_args() -> argparse.Namespace:
         "--r-max",
         type=int,
         default=None,
-        help="Predeclared maximum extraction rank. Defaults to n_layers + 1.",
+        help=(
+            "Optional legacy maximum extraction rank for threshold-selected bases. "
+            "If omitted, the rank-prefix curve budget is used and the reported "
+            "certificate rank is selected by --selection-alpha."
+        ),
     )
     parser.add_argument("--curve-r-max", type=int, default=20)
+    parser.add_argument(
+        "--selection-alpha",
+        type=float,
+        default=0.05,
+        help="Prediction-risk tolerance used to select the first sufficient rank prefix.",
+    )
     parser.add_argument("--n-build", type=int, default=16)
     parser.add_argument("--n-eval", type=int, default=32)
     parser.add_argument("--n-additivity", type=int, default=4)
@@ -459,11 +469,31 @@ def operator_metrics(
         "cos_res": cos_res,
     }
     if A is not None and krr_risk is not None:
-        D = S - T
-        # trace(D A D^T) is the exact task-label prediction excess of S over KRR.
-        rho = float(torch.sum((D @ A) * D).item() / max(float(krr_risk), FLOOR))
-        out["rho_operator_to_T"] = rho
+        out["rho_operator_to_T"] = rho_operator_to_T(S, T, A, krr_risk)
     return out
+
+
+def rho_operator_to_T(S: torch.Tensor, T: torch.Tensor, A: torch.Tensor, krr_risk: float) -> float:
+    D = S - T
+    # trace(D A D^T) is the exact task-label prediction excess of S over KRR.
+    return float(torch.sum((D @ A) * D).item() / max(float(krr_risk), FLOOR))
+
+
+def select_sufficient_rank(
+    Q_all: torch.Tensor,
+    Kt: torch.Tensor,
+    T: torch.Tensor,
+    A: torch.Tensor,
+    krr_risk: float,
+    alpha: float,
+    max_rank: int,
+) -> int:
+    max_rank = min(max_rank, Q_all.shape[1])
+    for rank in range(max_rank + 1):
+        S = galerkin_operator(Kt, Q_all[:, :rank])
+        if rho_operator_to_T(S, T, A, krr_risk) <= alpha:
+            return rank
+    return max_rank
 
 
 def krr_posterior_risk(Ktt: torch.Tensor, Kt: torch.Tensor, A: torch.Tensor) -> float:
@@ -513,7 +543,7 @@ def rank_curve_records(
     eval_probes: torch.Tensor,
     eval_fd: torch.Tensor,
     max_rank: int,
-    predeclared_rank: int,
+    selected_rank: int,
     A: Optional[torch.Tensor] = None,
     krr_risk: Optional[float] = None,
 ) -> List[Dict[str, object]]:
@@ -528,7 +558,7 @@ def rank_curve_records(
             "probe_kind": probe_kind,
             "basis": basis_name,
             "rank": rank,
-            "is_predeclared_rank": int(rank == predeclared_rank),
+            "is_selected_rank": int(rank == selected_rank),
         }
         row.update(metrics)
         rows.append(row)
@@ -585,6 +615,40 @@ def summarize(
     return summaries
 
 
+def probe_label(probe_kind: str, *, compact: bool = False) -> str:
+    labels = {
+        "label": r"$\mathcal{N}(0,A)$" if compact else r"$u\sim\mathcal{N}(0,A)$",
+        "isotropic": r"$\mathcal{N}(0,I)$" if compact else r"$u\sim\mathcal{N}(0,I)$",
+    }
+    return labels.get(probe_kind, probe_kind.replace("_", " "))
+
+
+def basis_label(basis: str) -> str:
+    labels = {
+        "raw": r"$Q_{\mathrm{raw}}$",
+        "response": r"$Q_{\mathrm{resp}}$",
+        "resp": r"$Q_{\mathrm{resp}}$",
+        "matched_response": r"$Q_\lambda$",
+    }
+    return labels.get(basis, basis.replace("_", " "))
+
+
+def method_label(method: str) -> str:
+    labels = {
+        "raw": r"$T_{Q_{\mathrm{raw}}}$",
+        "resp": r"$T_{Q_{\mathrm{resp}}}$",
+        "raw_actLR": r"$T_{\mathrm{actLR}}(Q_{\mathrm{raw}})$",
+        "resp_actLR": r"$T_{\mathrm{actLR}}(Q_{\mathrm{resp}})$",
+        "raw_random": r"$T_{Q_{\mathrm{rand}}}$",
+        "resp_random": r"$T_{Q_{\mathrm{rand}}}$",
+        "raw_poly_y": r"$T_{Q_{\mathrm{poly}(y)}}$",
+        "resp_poly_y": r"$T_{Q_{\mathrm{poly}(y)}}$",
+        "raw_best_rank": r"$T_{Q_{\mathrm{raw}}(r_\ast)}$",
+        "resp_best_rank": r"$T_{Q_{\mathrm{resp}}(r_\ast)}$",
+    }
+    return labels.get(method, method.replace("_", " "))
+
+
 def plot_summary_errors(rows: Sequence[Dict[str, object]], path: Path) -> None:
     selected = [
         "raw",
@@ -607,22 +671,22 @@ def plot_summary_errors(rows: Sequence[Dict[str, object]], path: Path) -> None:
         axes = [axes]
     for ax, probe_kind in zip(axes, probe_kinds):
         vals_model = []
-        vals_sub = []
+        vals_rho = []
         labels = []
         for method in selected:
             subset = [r for r in rows if r["probe_kind"] == probe_kind and r["method"] == method]
             if not subset:
                 continue
-            labels.append(method)
+            labels.append(method_label(method))
             vals_model.append(np.mean([float(r["E_model_to_operator"]) for r in subset]))
-            vals_sub.append(np.mean([float(r["E_operator_to_T"]) for r in subset]))
+            vals_rho.append(np.mean([float(r["rho_operator_to_T"]) for r in subset]))
         x = np.arange(len(labels))
         width = 0.38
-        ax.bar(x - width / 2, vals_model, width, label="model to operator")
-        ax.bar(x + width / 2, vals_sub, width, label="operator to KRR")
+        ax.bar(x - width / 2, vals_model, width, label=r"$E(F,S)$")
+        ax.bar(x + width / 2, vals_rho, width, label=r"$\rho_G(S)$")
         ax.axhline(1.0, color="0.4", linestyle=":", linewidth=1.0)
-        ax.set_title(f"Held-out errors, {probe_kind} probes")
-        ax.set_ylabel("relative error")
+        ax.set_title(rf"Held-out probes: {probe_label(probe_kind)}")
+        ax.set_ylabel("dimensionless metric")
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=35, ha="right")
         ax.set_yscale("log")
@@ -633,34 +697,67 @@ def plot_summary_errors(rows: Sequence[Dict[str, object]], path: Path) -> None:
     plt.close(fig)
 
 
-def plot_rank_curves(rows: Sequence[Dict[str, object]], path: Path) -> None:
+def plot_rank_curves(
+    rows: Sequence[Dict[str, object]],
+    path: Path,
+    marker_rank: Optional[float] = None,
+    marker_label: str = "selected rank",
+) -> None:
     if not rows:
         return
-    probe_kinds = sorted({str(r["probe_kind"]) for r in rows})
-    bases = sorted({str(r["basis"]) for r in rows})
+    probe_kind = "label" if any(str(r["probe_kind"]) == "label" for r in rows) else str(rows[0]["probe_kind"])
+    bases = [b for b in ["raw", "response"] if any(str(r["basis"]) == b for r in rows)]
+    if not bases:
+        bases = sorted({str(r["basis"]) for r in rows})
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), sharey=False)
-    metrics = [("E_operator_to_T", "operator to KRR"), ("E_model_to_operator", "model to T_Q")]
-    for ax, (metric, title) in zip(axes, metrics):
-        for probe_kind in probe_kinds:
-            for basis in bases:
-                subset = [r for r in rows if r["probe_kind"] == probe_kind and r["basis"] == basis]
-                by_rank: Dict[int, List[float]] = defaultdict(list)
-                for row in subset:
-                    by_rank[int(row["rank"])].append(float(row[metric]))
-                ranks = sorted(by_rank)
-                if not ranks:
-                    continue
-                vals = [np.mean(by_rank[r]) for r in ranks]
-                ax.plot(ranks, vals, marker="o", label=f"{basis}, {probe_kind}")
+
+    for ax, metric, title, ylabel in [
+        (axes[0], "rho_operator_to_T", r"$\rho_G(T_Q)$", r"prediction-risk excess"),
+        (axes[1], "E_model_to_operator", r"$E_{\mathrm{task}}(F,T_Q)$", "finite-difference error"),
+    ]:
+        for basis in bases:
+            subset = [
+                r for r in rows if str(r["probe_kind"]) == probe_kind and str(r["basis"]) == basis
+            ]
+            by_rank: Dict[int, List[float]] = defaultdict(list)
+            for row in subset:
+                by_rank[int(row["rank"])].append(float(row[metric]))
+            ranks = sorted(by_rank)
+            if not ranks:
+                continue
+            vals = [np.mean(by_rank[r]) for r in ranks]
+            ax.plot(ranks, vals, marker="o", label=basis_label(basis))
+        if metric == "rho_operator_to_T":
+            ax.axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
+        if marker_rank is not None:
+            ax.axvline(
+                marker_rank,
+                color="0.25",
+                linestyle="--",
+                linewidth=1.1,
+                label=marker_label if metric == "E_model_to_operator" else "_nolegend_",
+            )
         ax.set_title(title)
-        ax.set_xlabel("rank")
-        ax.set_ylabel("relative error")
+        ax.set_xlabel(r"$\dim(Q)$")
+        ax.set_ylabel(ylabel)
         ax.set_yscale("log")
         ax.grid(True, alpha=0.25)
+    axes[0].legend(fontsize=8, loc="upper right")
     axes[1].legend(fontsize=8, bbox_to_anchor=(1.02, 1.0), loc="upper left")
     fig.tight_layout()
     fig.savefig(path, dpi=180)
     plt.close(fig)
+
+
+def mean_selected_rank(rows: Sequence[Dict[str, object]]) -> Optional[float]:
+    selected = [
+        float(r["rank"])
+        for r in rows
+        if str(r.get("probe_kind")) == "label" and int(r.get("is_selected_rank", 0)) == 1
+    ]
+    if not selected:
+        return None
+    return float(np.mean(selected))
 
 
 def plot_additivity(rows: Sequence[Dict[str, object]], path: Path) -> None:
@@ -675,11 +772,12 @@ def plot_additivity(rows: Sequence[Dict[str, object]], path: Path) -> None:
             by_eps[float(row["eps"])].append(float(row["additivity_defect"]))
         eps_vals = sorted(by_eps)
         vals = [np.mean(by_eps[e]) for e in eps_vals]
-        ax.plot(eps_vals, vals, marker="o", label=probe_kind)
+        ax.plot(eps_vals, vals, marker="o", label=probe_label(probe_kind))
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("epsilon")
-    ax.set_ylabel("additivity defect")
+    ax.set_title(r"$A_\varepsilon(F)$")
+    ax.set_xlabel(r"$\varepsilon$")
+    ax.set_ylabel("normalized defect")
     ax.grid(True, alpha=0.25)
     ax.legend()
     fig.tight_layout()
@@ -734,41 +832,48 @@ def plot_actlr_comparison(rows: Sequence[Dict[str, object]], path: Path) -> None
     if not rows:
         return
     groups = []
-    for probe_kind in sorted({str(r["probe_kind"]) for r in rows}):
+    probe_kinds = sorted({str(r["probe_kind"]) for r in rows})
+    for probe_kind in probe_kinds:
         for basis in ["raw", "response"]:
             subset = [r for r in rows if r["probe_kind"] == probe_kind and r["basis"] == basis]
             if subset:
                 groups.append((probe_kind, basis, subset))
 
-    labels = [f"{probe}\n{basis}" for probe, basis, _ in groups]
+    labels = [
+        f"{probe_label(probe, compact=True)}\n{basis_label(basis)}"
+        for probe, basis, _ in groups
+    ]
     x = np.arange(len(labels))
     width = 0.36
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
     for ax, metric_tq, metric_act, title in [
         (
             axes[0],
             "TQ_E_model_to_operator",
             "actLR_E_model_to_operator",
-            "Model response fit",
+            r"$E(F,S)$",
         ),
         (
             axes[1],
-            "TQ_E_operator_to_T",
-            "actLR_E_operator_to_T",
-            "KRR operator agreement",
+            "TQ_rho_operator_to_T",
+            "actLR_rho_operator_to_T",
+            r"$\rho_G(S)$",
         ),
     ]:
         tq_vals = [np.mean([float(r[metric_tq]) for r in subset]) for _, _, subset in groups]
         act_vals = [np.mean([float(r[metric_act]) for r in subset]) for _, _, subset in groups]
-        ax.bar(x - width / 2, tq_vals, width, label="T_Q")
-        ax.bar(x + width / 2, act_vals, width, label="actLR")
+        ax.bar(x - width / 2, tq_vals, width, label=r"$T_Q$")
+        ax.bar(x + width / 2, act_vals, width, label=r"$T_{\mathrm{actLR}}$")
+        if metric_tq == "TQ_rho_operator_to_T":
+            ax.axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
         ax.set_title(title)
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
         ax.set_yscale("log")
         ax.grid(True, axis="y", alpha=0.25)
-    axes[0].set_ylabel("relative error")
+    axes[0].set_ylabel("finite-difference error")
+    axes[1].set_ylabel("prediction-risk excess")
     axes[1].legend(fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=180)
@@ -805,63 +910,63 @@ def append_interpolation_records(
 def plot_interpolation(rows: Sequence[Dict[str, object]], path: Path) -> None:
     if not rows:
         return
-    bases = [b for b in ["raw", "response"] if any(r["basis"] == b for r in rows)]
-    fig, axes = plt.subplots(1, len(bases), figsize=(7 * len(bases), 4.8), sharey=True)
-    if len(bases) == 1:
-        axes = [axes]
+    bases = [b for b in ["matched_response"] if any(r["basis"] == b for r in rows)]
+    if not bases:
+        bases = sorted({str(r["basis"]) for r in rows})
+    basis = bases[0]
+    subset = [r for r in rows if r["basis"] == basis]
+    lambdas = sorted({float(r["lambda"]) for r in subset})
 
-    for ax, basis in zip(axes, bases):
-        subset = [r for r in rows if r["basis"] == basis]
-        lambdas = sorted({float(r["lambda"]) for r in subset})
-
-        def mean_for(operator_kind: str, metric: str) -> List[float]:
-            vals = []
-            for lam in lambdas:
-                s = [
-                    float(r[metric])
-                    for r in subset
-                    if float(r["lambda"]) == lam and r["operator_kind"] == operator_kind
-                ]
-                vals.append(float(np.mean(s)) if s else float("nan"))
-            return vals
-
-        model_to_T = []
+    def mean_for(operator_kind: str, metric: str) -> List[float]:
+        vals = []
         for lam in lambdas:
-            s = [float(r["E_model_to_T"]) for r in subset if float(r["lambda"]) == lam]
-            model_to_T.append(float(np.mean(s)) if s else float("nan"))
+            s = [
+                float(r[metric])
+                for r in subset
+                if float(r["lambda"]) == lam and r["operator_kind"] == operator_kind
+            ]
+            vals.append(float(np.mean(s)) if s else float("nan"))
+        return vals
 
-        ax.plot(lambdas, model_to_T, "k--", marker="o", label="model to KRR")
-        ax.plot(
-            lambdas,
-            mean_for("galerkin", "E_model_to_operator"),
-            marker="o",
-            label="model to T_Q",
-        )
-        ax.plot(
-            lambdas,
-            mean_for("galerkin", "E_operator_to_T"),
-            marker="o",
-            label="T_Q to KRR",
-        )
-        ax.plot(
-            lambdas,
-            mean_for("actLR", "E_model_to_operator"),
-            marker="s",
-            label="model to actLR",
-        )
-        ax.plot(
-            lambdas,
-            mean_for("actLR", "E_operator_to_T"),
-            marker="s",
-            label="actLR to KRR",
-        )
-        ax.set_title(f"{basis} basis")
-        ax.set_xlabel("isotropic mixing lambda")
+    model_to_T = []
+    for lam in lambdas:
+        s = [
+            float(r["E_model_to_T"])
+            for r in subset
+            if float(r["lambda"]) == lam and r["operator_kind"] == "galerkin"
+        ]
+        model_to_T.append(float(np.mean(s)) if s else float("nan"))
+
+    fig, axes = plt.subplots(1, 2, figsize=(9.0, 3.8), sharey=False)
+    axes[0].plot(lambdas, model_to_T, "k--", marker="o", label=r"$E_\lambda(F,T)$")
+    axes[0].plot(
+        lambdas,
+        mean_for("galerkin", "E_model_to_operator"),
+        marker="o",
+        label=r"$E_\lambda(F,T_{Q_\lambda})$",
+    )
+    axes[0].set_title(r"$E_\lambda$")
+    axes[0].set_ylabel("finite-difference error")
+    axes[0].legend(fontsize=8, frameon=False, loc="upper left")
+
+    axes[1].plot(
+        lambdas,
+        mean_for("galerkin", "rho_operator_to_T"),
+        marker="o",
+        color="tab:orange",
+        label=r"$\rho_G(T_{Q_\lambda})$",
+    )
+    axes[1].axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
+    axes[1].set_title(r"$\rho_G(T_{Q_\lambda})$")
+    axes[1].set_ylabel("prediction-risk excess")
+    axes[1].legend(fontsize=8, frameon=False, loc="upper left")
+
+    for ax in axes:
+        ax.set_xlabel(r"$\lambda$ in $u_\lambda$")
         ax.set_yscale("log")
         ax.grid(True, alpha=0.25)
-    axes[0].set_ylabel("relative error")
-    axes[-1].legend(fontsize=8, bbox_to_anchor=(1.02, 1.0), loc="upper left")
-    fig.tight_layout()
+    fig.suptitle(r"$Q_\lambda=\mathrm{span}(D_yH_L^{\mathrm{ctx}}[u_\lambda])$", y=0.98)
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.92))
     fig.savefig(path, dpi=180)
     plt.close(fig)
 
@@ -880,7 +985,8 @@ def write_text_summary(
     lines.append("")
     lines.append(
         f"model={args.model_key}, episodes={args.episodes}, eps={args.eps}, "
-        f"tau_sv={args.tau_sv}, r_max={args.r_max or args.n_layers + 1}"
+        f"tau_sv={args.tau_sv}, selection_alpha={args.selection_alpha}, "
+        f"curve_r_max={args.curve_r_max}"
     )
     if task_summary:
         row = task_summary[0]
@@ -907,7 +1013,7 @@ def write_text_summary(
     if interp_summary:
         lines.append("")
         lines.append("Probe interpolation endpoints:")
-        for basis in ["raw", "response"]:
+        for basis in ["matched_response", "raw", "response"]:
             for lam in [0.0, 1.0]:
                 rows = [
                     r
@@ -924,7 +1030,7 @@ def write_text_summary(
                     + f"{basis}, lambda={lam:g}: "
                     + f"E_model_to_T={row.get('E_model_to_T_mean', float('nan')):.4g}, "
                     + f"E_model_to_TQ={row.get('E_model_to_operator_mean', float('nan')):.4g}, "
-                    + f"E_TQ_to_T={row.get('E_operator_to_T_mean', float('nan')):.4g}"
+                    + f"rho_TQ={row.get('rho_operator_to_T_mean', float('nan')):.4g}"
                 )
     lines.append("")
     lines.append("Key held-out means:")
@@ -956,8 +1062,7 @@ def write_text_summary(
 
 def run() -> None:
     args = parse_args()
-    r_max = args.r_max or (args.n_layers + 1)
-    args.r_max = r_max
+    r_limit = args.r_max if args.r_max is not None else args.curve_r_max
     results_dir = Path(args.results_dir)
     ensure_dir(results_dir)
 
@@ -1035,12 +1140,21 @@ def run() -> None:
             H_raw,
             A_factors,
             args.tau_sv,
-            r_max,
+            r_limit,
             curve_r_max=args.curve_r_max,
         )
-        raw_rank = int(raw_pack["rank"])
-        raw_Q = raw_pack["Q"]  # type: ignore[assignment]
+        raw_tau_rank = int(raw_pack["rank"])
         raw_Q_all = raw_pack["Q_all"]  # type: ignore[assignment]
+        raw_rank = select_sufficient_rank(
+            raw_Q_all,
+            Kt,
+            T,
+            A,
+            krr_risk,
+            args.selection_alpha,
+            args.curve_r_max,
+        )
+        raw_Q = raw_Q_all[:, :raw_rank]
 
         perm_y = torch.randperm(n_ctx, generator=generator)
         y_shuf = y[perm_y]
@@ -1050,7 +1164,7 @@ def run() -> None:
             H_raw_shuf,
             A_factors,
             args.tau_sv,
-            r_max,
+            r_limit,
             force_rank=raw_rank,
             curve_r_max=args.curve_r_max,
         )
@@ -1066,12 +1180,21 @@ def run() -> None:
             M_resp,
             A_factors,
             args.tau_sv,
-            r_max,
+            r_limit,
             curve_r_max=args.curve_r_max,
         )
-        resp_rank = int(resp_pack["rank"])
-        resp_Q = resp_pack["Q"]  # type: ignore[assignment]
+        resp_tau_rank = int(resp_pack["rank"])
         resp_Q_all = resp_pack["Q_all"]  # type: ignore[assignment]
+        resp_rank = select_sufficient_rank(
+            resp_Q_all,
+            Kt,
+            T,
+            A,
+            krr_risk,
+            args.selection_alpha,
+            args.curve_r_max,
+        )
+        resp_Q = resp_Q_all[:, :resp_rank]
 
         if args.skip_shuffled_label_control:
             resp_shuf_Q = torch.zeros(n_ctx, 0, dtype=torch.float64)
@@ -1090,7 +1213,7 @@ def run() -> None:
                 M_resp_shuf,
                 A_factors,
                 args.tau_sv,
-                r_max,
+                r_limit,
                 force_rank=resp_rank,
                 curve_r_max=args.curve_r_max,
             )
@@ -1124,7 +1247,19 @@ def run() -> None:
 
             Kt_perm = Kt[:, torch.randperm(n_ctx, generator=generator)]
             basis_controls: List[Tuple[str, str, torch.Tensor, torch.Tensor, int, Dict[str, object]]] = [
-                ("raw", "galerkin_main", raw_Q, Kt, raw_rank, {"basis_source": "raw"}),
+                (
+                    "raw",
+                    "galerkin_main",
+                    raw_Q,
+                    Kt,
+                    raw_rank,
+                    {
+                        "basis_source": "raw",
+                        "rank_selection": "first_rho_le_alpha",
+                        "selection_alpha": args.selection_alpha,
+                        "tau_rank": raw_tau_rank,
+                    },
+                ),
                 (
                     "resp",
                     "galerkin_main",
@@ -1134,6 +1269,9 @@ def run() -> None:
                     {
                         "basis_source": "response",
                         "response_basis_probe_kind": args.response_basis_probe_kind,
+                        "rank_selection": "first_rho_le_alpha",
+                        "selection_alpha": args.selection_alpha,
+                        "tau_rank": resp_tau_rank,
                     },
                 ),
                 (
@@ -1293,37 +1431,42 @@ def run() -> None:
                         math.sqrt(1.0 - lam) * interp_task
                         + math.sqrt(lam) * interp_iso
                     )
-                    fd, _ = finite_difference_bundle(
-                        model, x_ctx, x_tgt, y, probes, args.eps, return_hidden=False
+                    fd, M_interp = finite_difference_bundle(
+                        model, x_ctx, x_tgt, y, probes, args.eps, return_hidden=True
                     )
-                    for basis, Q, rank, S_gal, S_act in [
-                        ("raw", raw_Q, raw_rank, galerkin_operator(Kt, raw_Q), raw_actlr_fit),
-                        ("response", resp_Q, resp_rank, galerkin_operator(Kt, resp_Q), resp_actlr_fit),
+                    assert M_interp is not None
+                    interp_pack = weighted_svd_basis(
+                        M_interp,
+                        A_factors,
+                        args.tau_sv,
+                        r_limit,
+                        curve_r_max=args.curve_r_max,
+                    )
+                    interp_Q_all = interp_pack["Q_all"]  # type: ignore[assignment]
+                    interp_rank = select_sufficient_rank(
+                        interp_Q_all,
+                        Kt,
+                        T,
+                        A,
+                        krr_risk,
+                        args.selection_alpha,
+                        args.curve_r_max,
+                    )
+                    interp_Q = interp_Q_all[:, :interp_rank]
+                    interp_S_gal = galerkin_operator(Kt, interp_Q)
+                    interp_S_act = actlr_operator(interp_Q, probes, fd)
+                    for operator_kind, S in [
+                        ("galerkin", interp_S_gal),
+                        ("actLR", interp_S_act),
                     ]:
                         append_interpolation_records(
                             interp_records,
                             episode,
                             lam,
-                            basis,
-                            "galerkin",
-                            int(Q.shape[1]),
-                            S_gal,
-                            T,
-                            y,
-                            F_y,
-                            probes,
-                            fd,
-                            A=A,
-                            krr_risk=krr_risk,
-                        )
-                        append_interpolation_records(
-                            interp_records,
-                            episode,
-                            lam,
-                            basis,
-                            "actLR",
-                            int(Q.shape[1]),
-                            S_act,
+                            "matched_response",
+                            operator_kind,
+                            int(interp_Q.shape[1]),
+                            S,
                             T,
                             y,
                             F_y,
@@ -1417,7 +1560,18 @@ def run() -> None:
     write_csv(results_dir / "additivity_summary.csv", add_summary)
 
     plot_summary_errors(metric_records, results_dir / "summary_errors.png")
-    plot_rank_curves(rank_records, results_dir / "rank_curves.png")
+    marker_rank = mean_selected_rank(rank_records)
+    marker_label = (
+        rf"$\bar{{k}}_{{\rho_G\leq 5\%}}={marker_rank:.2g}$"
+        if marker_rank is not None
+        else r"$k_{\rho_G\leq 5\%}$"
+    )
+    plot_rank_curves(
+        rank_records,
+        results_dir / "rank_curves.png",
+        marker_rank=marker_rank,
+        marker_label=marker_label,
+    )
     plot_additivity(add_records, results_dir / "additivity.png")
     plot_actlr_comparison(actlr_records, results_dir / "actlr_comparison.png")
     plot_interpolation(interp_records, results_dir / "probe_interpolation.png")
