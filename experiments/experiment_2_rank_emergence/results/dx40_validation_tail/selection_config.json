@@ -1,0 +1,31 @@
+{
+  "selected_bank_indices": [
+    6,
+    15,
+    244,
+    188,
+    415,
+    129,
+    159
+  ],
+  "wrapper_args": {
+    "bank_batch_size": 16,
+    "bank_seed": 122,
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/final/dx40_tau16_s122.pt",
+    "device": "cpu",
+    "gamma_values": "4,8,12",
+    "log10_lambda1_max": 2.0,
+    "log10_lambda1_min": -2.0,
+    "n_ctx": 47,
+    "n_tgt": 40,
+    "name": "dx40_tau16_s122_validation_tail",
+    "results_dir": "experiments/experiment_2_rank_emergence/results/dx40_validation_tail",
+    "seed": 122,
+    "selected_bank_indices": "",
+    "selection_records": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/experiment_4_q_repair/results_train_validation_like/records.csv",
+    "sigma2": 0.1,
+    "tau_max": 16.0,
+    "tau_min": 0.001,
+    "train_n_tgt": 8
+  }
+}

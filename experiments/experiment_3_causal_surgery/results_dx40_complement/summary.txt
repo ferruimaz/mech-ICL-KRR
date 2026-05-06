@@ -1,0 +1,10 @@
+dx40 Experiment 3 complement ablation
+
+episodes=8, n_ctx=47, n_tgt=40, state_idx=1
+basis=response layer 8, alpha=0.05, n_build=16, n_eval=16
+records=24
+
+name         n   rankQ     rT     rhoTQ   mse/KRR    pt_err     drift    E(F,T)    damage
+base         8   21.38  21.00   0.04101     1.156   0.11108   0.00000   0.09875   0.00000
+keep_Q       8   21.38  21.00   0.04101     1.156   0.17748   0.15443   0.15647   0.15638
+remove_Q     8   21.38  21.00   0.04101     1.156   0.64621   0.63989   0.59226   0.58083

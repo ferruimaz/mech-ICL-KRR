@@ -815,8 +815,9 @@ support the KRR readout.
 \centering
 \includegraphics[width=0.90\linewidth]{../experiments/experiment_1_operator_certificate/results/actlr_comparison.png}
 \caption{Experiment 1 same-span readout control. Left: finite-difference response error \(E(F,S)\)
-on task and isotropic probes. Right: prediction-risk excess \(\rho_G(S)\), with the dotted line
-marking the five-percent tolerance.
+on task and isotropic probes. Right: prediction-risk excess \(\rho_G(S)\), shown once per basis
+because it is defined by the task covariance \(A\) rather than by the held-out probe law; the dotted
+line marks the five-percent tolerance.
 \(T_Q\) and actLR use the same activation coordinates \(Q^\top u\). actLR fits the transformer's
 finite-difference responses with a free least-squares readout; \(T_Q\) uses the KRR-constrained
 readout \(K_tQ\).}
@@ -834,20 +835,17 @@ where \(u_{\mathrm{task}}\sim\mathcal{N}(0,A)\) and \(u_{\mathrm{iso}}\sim\mathc
 \(\lambda=0\) is the task-label probe law used for the certificate, while \(\lambda=1\) is the
 isotropic off-distribution probe law. We then build a fresh response basis \(Q_\lambda\) from the
 same mixed hidden finite differences that are used for the plotted evaluation. This is not a held-out
-certificate; it is a fair matched-probe stress test asking whether the response subspace available
-under that probe law still supports the KRR-constrained operator. Figure~\ref{fig:exp1-probe-interpolation}
-separates the two relevant quantities: local response agreement on the mixed probes and
-prediction-risk sufficiency of the induced KRR-constrained operator.
+certificate; it is a fair matched-probe stress test asking whether the model's local KRR behavior
+persists as perturbations leave the task-distributed directions. Figure~\ref{fig:exp1-probe-interpolation}
+shows the degradation directly in finite-difference response error.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.90\linewidth]{../experiments/experiment_1_operator_certificate/results/probe_interpolation.png}
+\includegraphics[width=0.70\linewidth]{../experiments/experiment_1_operator_certificate/results/probe_interpolation.png}
 \caption{Experiment 1 task-to-isotropic probe interpolation with matched response bases. For each
 \(\lambda\), \(Q_\lambda\) is built from the same mixed perturbations used in the plotted errors.
-Left: finite-difference response errors on the mixed probe law. Right: task prediction-risk excess
-\(\rho_G(T_{Q_\lambda})\), with the dotted line marking the five-percent tolerance. As
-\(\lambda\) approaches \(1\), even the matched response basis no longer supports a clean
-KRR-constrained explanation.}
+The transformer is locally KRR-like on task-distributed directions, but the finite-difference
+operator error grows as the perturbations become isotropic.}
 \label{fig:exp1-probe-interpolation}
 \end{figure}
 

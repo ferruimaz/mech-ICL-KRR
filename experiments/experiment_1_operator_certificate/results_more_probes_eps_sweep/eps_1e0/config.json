@@ -1,0 +1,31 @@
+{
+  "args": {
+    "additivity_eps_scales": "0.1,0.3,1,3,10",
+    "checkpoint": null,
+    "curve_r_max": 20,
+    "device": "cpu",
+    "episodes": 4,
+    "eps": 1.0,
+    "interp_lambdas": "0,0.1,0.25,0.5,0.75,0.9,1",
+    "model_key": "standard",
+    "n_additivity": 16,
+    "n_build": 64,
+    "n_ctx": 47,
+    "n_eval": 128,
+    "n_interp": 64,
+    "n_layers": 8,
+    "n_tgt": 3,
+    "probe_kinds": "isotropic,label",
+    "r_max": null,
+    "response_basis_probe_kind": "label",
+    "results_dir": "experiments/experiment_1_operator_certificate/results_more_probes_eps_sweep/eps_1e0",
+    "seed": 123,
+    "selection_alpha": 0.05,
+    "sigma2": 0.1,
+    "skip_shuffled_label_control": false,
+    "tau_sv": 0.001
+  },
+  "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/final/linear_baseline_dx5_L8.pt",
+  "device": "cpu",
+  "repo_root": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR"
+}

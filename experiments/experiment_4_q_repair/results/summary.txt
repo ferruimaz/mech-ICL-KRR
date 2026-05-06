@@ -1,0 +1,19 @@
+Experiment 4: dx40 response-prefix repair
+
+bank_size=200, min_base_ratio=5.0, select_top=8, seed=20260506
+n_ctx=47, n_tgt=40, state_idx=1, basis_layer=8
+alpha=0.05, n_build=16, n_eval=16
+
+name         n   rankQ     rT     rhoTQ         MSE     MSE/KRR    repair    E(F,T)    damage
+base         2    2.50   1.50   0.04200      41.796    8371.275       1.0   408.781     0.000
+keep_Q       2    2.50   1.50   0.04200   0.0074066       1.096    7125.2     0.259   408.775
+keep_krr_oracle   2    2.50   1.50   0.04200   0.0080273       1.221    5880.9       nan       nan
+keep_random_A  40    2.50   1.50   0.04200   0.0083627       1.252    6266.1       nan       nan
+keep_response_svd   2    2.50   1.50   0.04200    0.012673       1.741    6040.2       nan       nan
+remove_Q     2    2.50   1.50   0.04200      100.14   20056.421       0.4   867.507   878.682
+zero_context   2    2.50   1.50   0.04200    0.010632       1.471    6912.0       nan       nan
+
+Selected episodes:
+sel  bank rankQ   rT   base/KRR   keep/KRR   zero/KRR   rand/KRR
+  1    35     4    2    16735.7      1.175      1.211      1.391
+  2   184     1    1        6.8      1.018      1.731      1.113

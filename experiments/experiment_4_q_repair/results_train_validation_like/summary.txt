@@ -1,0 +1,44 @@
+Experiment 4: dx40 response-prefix repair
+
+bank_size=480, min_base_ratio=5.0, select_top=8, seed=122, bank_batch_size=16
+sampling=train_distribution, gamma in {4,8,12}, n_tgt=8, n_ctx=round(gamma*tau)
+state_idx=1, basis_layer=8
+alpha=0.05, n_build=16, n_eval=8
+log10(lambda1)=[-2.0, 2.0], tau=[0.001, 16.0]
+
+Bank scan:
+  n=480
+  median base/KRR=1.24
+  q90 base/KRR=2.8
+  q99 base/KRR=5.69
+  max base/KRR=31
+  fraction >= 2: 0.196
+  fraction >= 5: 0.015
+  fraction >= 10: 0.002
+Batch-mean scan:
+  batches=30
+  mean batch base/KRR=1.638
+  median batch base/KRR=1.41
+  max batch base/KRR=4.09
+  batch fraction >= 2: 0.200
+  batch fraction >= 5: 0.000
+  batch fraction >= 10: 0.000
+
+name         n   rankQ     rT     rhoTQ         MSE     MSE/KRR    repair    E(F,T)    damage
+base         7   14.43   6.43   0.16659     0.28639       9.961       1.0     0.048     0.000
+keep_Q       7   14.43   6.43   0.16659  7.7286e+15 980164932086551680.000       0.6 56204315.889 56204315.881
+keep_krr_oracle   7   14.43   6.43   0.16659  2.6345e+15 85061494474137680.000       0.4       nan       nan
+keep_random_A  35   14.43   6.43   0.16659   1.829e+15 175773050739089536.000       0.1       nan       nan
+keep_response_svd   7   14.43   6.43   0.16659     0.57648      31.582       0.7       nan       nan
+remove_Q     7   14.43   6.43   0.16659  2.8328e+15 363823708070595456.000       0.3 113874851.709 113874851.700
+zero_context   7   14.43   6.43   0.16659      27.816    2276.554       0.9       nan       nan
+
+Selected episodes:
+sel  bank  bb  bm nctx ntgt    tau loglam   g rankQ   rT   base/KRR   keep/KRR   zero/KRR   rand/KRR
+  1     6   0   6   16    8   1.35   1.48  12     2    2       31.0     79.141   3068.672 122065021823893328.000
+  2    15   0  15   16    8   1.35   1.48  12     3    3        9.0      3.589      1.518 3435236105087471.000
+  3   244  15   4  124    8  15.50   1.21   8    40    8        6.6 548457422951858432.000   4858.421 125024559001845216.000
+  4   188  11  12  186    8  15.53   1.22  12    16    8        6.6 5999755855812259840.000   6995.153 493217639413924864.000
+  5   415  25  15   40    8   4.99   1.96   8    24    8        5.8      6.081     15.430      9.801
+  6   129   8   1  117    8  14.69   0.59   8     8    8        5.7 312941245841744000.000    719.098 45443486773283184.000
+  7   159   9  15  183    8  15.24   0.76  12     8    8        5.2    148.095    277.582 441225412055592576.000

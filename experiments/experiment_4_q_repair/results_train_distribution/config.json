@@ -1,0 +1,33 @@
+{
+  "args": {
+    "bank_size": 300,
+    "basis_layer": 8,
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/final/dx40_tau16_s122.pt",
+    "device": "cpu",
+    "eps": 0.001,
+    "excess_risk_frac": 0.05,
+    "gamma_values": "4,8,12",
+    "kernel_family": "linear",
+    "log10_lambda1_max": 2.0,
+    "log10_lambda1_min": -2.0,
+    "min_base_ratio": 5.0,
+    "n_build": 16,
+    "n_ctx": 47,
+    "n_eval": 8,
+    "n_random_controls": 5,
+    "n_tgt": 40,
+    "name": "dx40_tau16_s122_target_rich",
+    "results_dir": "experiments/experiment_4_q_repair/results_train_distribution",
+    "sampling_mode": "train_distribution",
+    "scan_only": false,
+    "seed": 20260506,
+    "select_top": 8,
+    "sigma2": 0.1,
+    "state_idx": 1,
+    "tau_max": 16.0,
+    "tau_min": 0.001,
+    "tau_sv": 0.001,
+    "train_n_tgt": 8
+  },
+  "device": "cpu"
+}

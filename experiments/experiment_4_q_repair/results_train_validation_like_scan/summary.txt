@@ -1,0 +1,22 @@
+Experiment 4: dx40 response-prefix repair
+
+bank_size=480, min_base_ratio=5.0, select_top=8, seed=122, bank_batch_size=16
+sampling=train_distribution, gamma in {4,8,12}, n_tgt=8, n_ctx=round(gamma*tau)
+state_idx=1, basis_layer=8
+alpha=0.05, n_build=8, n_eval=8
+log10(lambda1)=[-2.0, 2.0], tau=[0.001, 16.0]
+
+Bank scan:
+  n=480
+  median base/KRR=1.24
+  q90 base/KRR=2.8
+  q99 base/KRR=5.69
+  max base/KRR=31
+  fraction >= 2: 0.196
+  fraction >= 5: 0.015
+  fraction >= 10: 0.002
+
+name         n   rankQ     rT     rhoTQ         MSE     MSE/KRR    repair    E(F,T)    damage
+
+Selected episodes:
+sel  bank  bb  bm nctx ntgt    tau loglam   g rankQ   rT   base/KRR   keep/KRR   zero/KRR   rand/KRR

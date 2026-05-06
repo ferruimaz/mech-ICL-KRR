@@ -1,0 +1,26 @@
+{
+  "args": {
+    "basis_layer": 8,
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/final/dx40_tau16_s122.pt",
+    "device": "cpu",
+    "episodes": 1,
+    "eps": 0.001,
+    "excess_risk_frac": 0.05,
+    "kernel_family": "linear",
+    "log10_lambda1_max": 1.0,
+    "log10_lambda1_min": -2.0,
+    "n_build": 4,
+    "n_ctx": 47,
+    "n_eval": 4,
+    "n_tgt": 40,
+    "name": "dx40_tau16_s122_target_rich",
+    "results_dir": "experiments/experiment_3_causal_surgery/results_dx40_complement_smoke",
+    "seed": 122,
+    "sigma2": 0.1,
+    "state_idx": 1,
+    "tau_max": 16.0,
+    "tau_min": 0.001,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}

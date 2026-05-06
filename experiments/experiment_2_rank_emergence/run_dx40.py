@@ -98,10 +98,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         "0.1",
         "--kernel-family",
         "linear",
-        "--candidate-rank",
-        "40",
-        "--curve-r-max",
-        "40",
         "--rank-tau",
         "0.01",
         "--excess-risk-frac",
@@ -112,4 +108,3 @@ def main(argv: Sequence[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

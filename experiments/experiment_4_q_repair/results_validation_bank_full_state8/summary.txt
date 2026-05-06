@@ -1,0 +1,50 @@
+Experiment 4: dx40 response-prefix repair
+
+selection_mode=all_bank, bank_size=480, min_base_ratio=5.0, select_top=8, seed=122, bank_batch_size=16
+sampling=train_distribution, gamma in {4,8,12}, n_tgt=8, n_ctx=round(gamma*tau)
+state_idx=8, basis_layer=8
+alpha=0.05, n_build=16, n_eval=4
+log10(lambda1)=[-2.0, 2.0], tau=[0.001, 16.0]
+
+Bank scan:
+  n=480
+  median base/KRR=1.24
+  q90 base/KRR=2.8
+  q99 base/KRR=5.69
+  max base/KRR=31
+  fraction >= 2: 0.196
+  fraction >= 5: 0.015
+  fraction >= 10: 0.002
+Batch-mean scan:
+  batches=30
+  mean batch base/KRR=1.638
+  median batch base/KRR=1.41
+  max batch base/KRR=4.09
+  batch fraction >= 2: 0.200
+  batch fraction >= 5: 0.000
+  batch fraction >= 10: 0.000
+
+name         n   rankQ     rT     rhoTQ         MSE     MSE/KRR    repair    E(F,T)    damage
+base       480   10.22   7.44   0.05380     0.14444       1.638       1.0     0.111     0.000
+keep_Q     480   10.22   7.44   0.05380     0.14444       1.638       1.0     0.111     0.000
+keep_krr_oracle 480   10.22   7.44   0.05380     0.14444       1.638       1.0       nan       nan
+keep_response_svd 480   10.22   7.44   0.05380     0.14444       1.638       1.0       nan       nan
+remove_Q   480   10.22   7.44   0.05380     0.14444       1.638       1.0     0.111     0.000
+zero_context 480   10.22   7.44   0.05380     0.14444       1.638       1.0       nan       nan
+
+By response-prefix certificate:
+         cert name          n   rankQ     rhoTQ     MSE/KRR    repair    E(F,T)    damage
+    certified base        393    7.33   0.00895       1.446      1.00     0.126     0.000
+    certified keep_Q      393    7.33   0.00895       1.446      1.00     0.126     0.000
+    certified keep_krr_oracle  393    7.33   0.00895       1.446      1.00       nan       nan
+    certified keep_response_svd  393    7.33   0.00895       1.446      1.00       nan       nan
+    certified remove_Q    393    7.33   0.00895       1.446      1.00     0.126     0.000
+    certified zero_context  393    7.33   0.00895       1.446      1.00       nan       nan
+not_certified base         87   23.25   0.25642       2.507      1.00     0.045     0.000
+not_certified keep_Q       87   23.25   0.25642       2.507      1.00     0.045     0.000
+not_certified keep_krr_oracle   87   23.25   0.25642       2.507      1.00       nan       nan
+not_certified keep_response_svd   87   23.25   0.25642       2.507      1.00       nan       nan
+not_certified remove_Q     87   23.25   0.25642       2.507      1.00     0.045     0.000
+not_certified zero_context   87   23.25   0.25642       2.507      1.00       nan       nan
+
+Episode details omitted from text summary (480 processed episodes).

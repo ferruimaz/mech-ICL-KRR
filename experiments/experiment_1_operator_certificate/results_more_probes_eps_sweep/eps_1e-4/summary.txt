@@ -1,0 +1,41 @@
+Experiment 1: Operator-Galerkin Certificate
+
+model=standard, episodes=4, eps=0.0001, tau_sv=0.001, selection_alpha=0.05, curve_r_max=20
+
+Predictive task check: MSE(model,true)=0.0161, MSE(KRR,true)=0.0148, MSE ratio=1.188, rel(model,KRR)=0.01045
+
+Galerkin vs actLR:
+  isotropic/raw: TQ model-fit=0.2833, actLR model-fit=0.1978, TQ rho=0.004394, actLR rho=0.1272
+  isotropic/response: TQ model-fit=0.301, actLR model-fit=0.2192, TQ rho=0.006992, actLR rho=0.1252
+  label/raw: TQ model-fit=0.01268, actLR model-fit=0.006755, TQ rho=0.004394, actLR rho=0.1272
+  label/response: TQ model-fit=0.01296, actLR model-fit=0.007407, TQ rho=0.006992, actLR rho=0.1252
+
+Probe interpolation endpoints:
+  matched_response, lambda=0: E_model_to_T=0.01283, E_model_to_TQ=0.01298, rho_TQ=0.008496
+  matched_response, lambda=1: E_model_to_T=0.3019, E_model_to_TQ=1.895, rho_TQ=3.227
+
+Key held-out means:
+  isotropic/raw: rank=6.00, E_model_to_op=0.2833, rho=0.004394, X_use=0.9225, X_sub=0.9954
+  isotropic/raw_actLR: rank=6.00, E_model_to_op=0.1978, rho=0.1272, X_use=0.9625, X_sub=0.9499
+  isotropic/raw_random: rank=6.00, E_model_to_op=5.866, rho=47.91, X_use=-32.45, X_sub=-35.79
+  isotropic/resp: rank=6.00, E_model_to_op=0.301, rho=0.006992, X_use=0.9145, X_sub=0.9924
+  isotropic/resp_actLR: rank=6.00, E_model_to_op=0.2192, rho=0.1252, X_use=0.9545, X_sub=0.9475
+  isotropic/resp_random: rank=6.00, E_model_to_op=4.922, rho=42.34, X_use=-23.58, X_sub=-26
+  label/raw: rank=6.00, E_model_to_op=0.01268, rho=0.004394, X_use=0.9998, X_sub=1
+  label/raw_actLR: rank=6.00, E_model_to_op=0.006755, rho=0.1272, X_use=1, X_sub=0.9999
+  label/raw_random: rank=6.00, E_model_to_op=0.1742, rho=40.62, X_use=0.9693, X_sub=0.9697
+  label/resp: rank=6.00, E_model_to_op=0.01296, rho=0.006992, X_use=0.9998, X_sub=1
+  label/resp_actLR: rank=6.00, E_model_to_op=0.007407, rho=0.1252, X_use=0.9999, X_sub=0.9999
+  label/resp_random: rank=6.00, E_model_to_op=0.1676, rho=33.3, X_use=0.9716, X_sub=0.9718
+
+Additivity defects:
+  isotropic, eps=0.0001: 0.03422
+  isotropic, eps=0.00030000000000000003: 0.01191
+  isotropic, eps=0.001: 0.003742
+  isotropic, eps=1e-05: 0.3341
+  isotropic, eps=3e-05: 0.1177
+  label, eps=0.0001: 0.003055
+  label, eps=0.00030000000000000003: 0.001213
+  label, eps=0.001: 0.0003666
+  label, eps=1e-05: 0.03071
+  label, eps=3e-05: 0.01118

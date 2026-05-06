@@ -1,9 +1,9 @@
 {
   "args": {
     "basis_kinds": "response,raw,combined",
-    "candidate_rank": 128,
+    "candidate_rank": null,
     "checkpoint": "final/rbf_fixed_l3_nctx128_ntgt128_seed42.pt",
-    "curve_r_max": 64,
+    "curve_r_max": null,
     "d_model": 128,
     "d_x": 5,
     "device": "cpu",
@@ -22,7 +22,7 @@
     "n_tgt": 128,
     "name": "rbf_128x128_seed42",
     "rank_tau": 0.01,
-    "results_dir": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/experiments/experiment_2_rank_emergence/results/rbf_128x128_seed42",
+    "results_dir": "experiments/experiment_2_rank_emergence/results/rbf_128x128_seed42",
     "seed": 42,
     "sigma2": 0.1,
     "tau_sv": 0.0001

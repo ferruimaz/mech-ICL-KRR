@@ -402,12 +402,13 @@ def plot_emergence(
 
 
 def write_report(path: Path, layer_summary: Sequence[Dict[str, object]], args: argparse.Namespace) -> None:
+    curve_desc = "all" if args.curve_r_max is None else str(args.curve_r_max)
     lines = [
         "Experiment 2 Layerwise Sufficiency",
         "",
         f"checkpoint={args.checkpoint}",
         f"episodes={args.episodes}, n_ctx={args.n_ctx}, n_tgt={args.n_tgt}, "
-        f"alpha={args.excess_risk_frac}, curve_r_max={args.curve_r_max}",
+        f"alpha={args.excess_risk_frac}, curve_r_max={curve_desc}",
         "",
     ]
     for basis in ("response", "raw", "combined"):
@@ -461,8 +462,18 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--n-eval", type=int, default=16)
     parser.add_argument("--eps", type=float, default=1e-3)
     parser.add_argument("--tau-sv", type=float, default=1e-3)
-    parser.add_argument("--candidate-rank", type=int, default=128)
-    parser.add_argument("--curve-r-max", type=int, default=64)
+    parser.add_argument(
+        "--candidate-rank",
+        type=int,
+        default=None,
+        help="Maximum extracted candidate dimension. Omit to keep every numerically retained direction.",
+    )
+    parser.add_argument(
+        "--curve-r-max",
+        type=int,
+        default=None,
+        help="Maximum prefix rank to evaluate. Omit to evaluate every candidate prefix.",
+    )
     parser.add_argument("--rank-tau", type=float, default=1e-2)
     parser.add_argument("--excess-risk-frac", type=float, default=0.05)
     parser.add_argument("--basis-kinds", default="response,raw,combined")
@@ -546,10 +557,17 @@ def main(argv: Sequence[str] | None = None) -> None:
             }
             for basis in basis_kinds:
                 M = matrices[basis]
-                cand_rank = min(args.candidate_rank, M.shape[0], M.shape[1])
+                candidate_limit = (
+                    args.candidate_rank if args.candidate_rank is not None else max(M.shape)
+                )
+                cand_rank = min(candidate_limit, M.shape[0], M.shape[1])
                 C = a_orth_candidate(M, A_factors, args.tau_sv, cand_rank)
                 Q_all = krr_targeted_order(C, Kt, A_sqrt, A_invsqrt)
-                max_rank = min(args.curve_r_max, Q_all.shape[1])
+                max_rank = (
+                    Q_all.shape[1]
+                    if args.curve_r_max is None
+                    else min(args.curve_r_max, Q_all.shape[1])
+                )
                 for rank in range(max_rank + 1):
                     Q = Q_all[:, :rank]
                     T_q = Kt @ Q @ Q.T if rank else torch.zeros_like(T)

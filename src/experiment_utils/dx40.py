@@ -20,7 +20,7 @@ class Dx40SamplerCfg:
     tau_min: float = 1e-3
     tau_max: float = 16.0
     log10_lambda1_min: float = -2.0
-    log10_lambda1_max: float = 1.0
+    log10_lambda1_max: float = 2.0
     smooth_span_min: float = 0.0
     smooth_span_max: float = 8.0
     step_depth_min: float = 1.0

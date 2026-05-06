@@ -831,47 +831,62 @@ def build_actlr_comparison(rows: Sequence[Dict[str, object]]) -> List[Dict[str, 
 def plot_actlr_comparison(rows: Sequence[Dict[str, object]], path: Path) -> None:
     if not rows:
         return
-    groups = []
+    response_groups = []
     probe_kinds = sorted({str(r["probe_kind"]) for r in rows})
     for probe_kind in probe_kinds:
         for basis in ["raw", "response"]:
             subset = [r for r in rows if r["probe_kind"] == probe_kind and r["basis"] == basis]
             if subset:
-                groups.append((probe_kind, basis, subset))
+                response_groups.append((probe_kind, basis, subset))
 
-    labels = [
+    response_labels = [
         f"{probe_label(probe, compact=True)}\n{basis_label(basis)}"
-        for probe, basis, _ in groups
+        for probe, basis, _ in response_groups
     ]
-    x = np.arange(len(labels))
+    x_response = np.arange(len(response_labels))
+    risk_groups = []
+    for basis in ["raw", "response"]:
+        subset = [r for r in rows if r["basis"] == basis]
+        if subset:
+            risk_groups.append((basis, subset))
+    risk_labels = [basis_label(basis) for basis, _ in risk_groups]
+    x_risk = np.arange(len(risk_labels))
     width = 0.36
 
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.2))
-    for ax, metric_tq, metric_act, title in [
-        (
-            axes[0],
-            "TQ_E_model_to_operator",
-            "actLR_E_model_to_operator",
-            r"$E(F,S)$",
-        ),
-        (
-            axes[1],
-            "TQ_rho_operator_to_T",
-            "actLR_rho_operator_to_T",
-            r"$\rho_G(S)$",
-        ),
-    ]:
-        tq_vals = [np.mean([float(r[metric_tq]) for r in subset]) for _, _, subset in groups]
-        act_vals = [np.mean([float(r[metric_act]) for r in subset]) for _, _, subset in groups]
-        ax.bar(x - width / 2, tq_vals, width, label=r"$T_Q$")
-        ax.bar(x + width / 2, act_vals, width, label=r"$T_{\mathrm{actLR}}$")
-        if metric_tq == "TQ_rho_operator_to_T":
-            ax.axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
-        ax.set_title(title)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.set_yscale("log")
-        ax.grid(True, axis="y", alpha=0.25)
+
+    tq_vals = [
+        np.mean([float(r["TQ_E_model_to_operator"]) for r in subset])
+        for _, _, subset in response_groups
+    ]
+    act_vals = [
+        np.mean([float(r["actLR_E_model_to_operator"]) for r in subset])
+        for _, _, subset in response_groups
+    ]
+    axes[0].bar(x_response - width / 2, tq_vals, width, label=r"$T_Q$")
+    axes[0].bar(x_response + width / 2, act_vals, width, label=r"$T_{\mathrm{actLR}}$")
+    axes[0].set_title(r"$E(F,S)$")
+    axes[0].set_xticks(x_response)
+    axes[0].set_xticklabels(response_labels)
+    axes[0].set_yscale("log")
+    axes[0].grid(True, axis="y", alpha=0.25)
+
+    tq_rho = [
+        np.mean([float(r["TQ_rho_operator_to_T"]) for r in subset])
+        for _, subset in risk_groups
+    ]
+    act_rho = [
+        np.mean([float(r["actLR_rho_operator_to_T"]) for r in subset])
+        for _, subset in risk_groups
+    ]
+    axes[1].bar(x_risk - width / 2, tq_rho, width, label=r"$T_Q$")
+    axes[1].bar(x_risk + width / 2, act_rho, width, label=r"$T_{\mathrm{actLR}}$")
+    axes[1].axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
+    axes[1].set_title(r"$\rho_G(S)$")
+    axes[1].set_xticks(x_risk)
+    axes[1].set_xticklabels(risk_labels)
+    axes[1].set_yscale("log")
+    axes[1].grid(True, axis="y", alpha=0.25)
     axes[0].set_ylabel("finite-difference error")
     axes[1].set_ylabel("prediction-risk excess")
     axes[1].legend(fontsize=9)
@@ -937,36 +952,21 @@ def plot_interpolation(rows: Sequence[Dict[str, object]], path: Path) -> None:
         ]
         model_to_T.append(float(np.mean(s)) if s else float("nan"))
 
-    fig, axes = plt.subplots(1, 2, figsize=(9.0, 3.8), sharey=False)
-    axes[0].plot(lambdas, model_to_T, "k--", marker="o", label=r"$E_\lambda(F,T)$")
-    axes[0].plot(
+    fig, ax = plt.subplots(figsize=(6.6, 3.8))
+    ax.plot(lambdas, model_to_T, "k--", marker="o", label=r"$E_\lambda(F,T)$")
+    ax.plot(
         lambdas,
         mean_for("galerkin", "E_model_to_operator"),
         marker="o",
         label=r"$E_\lambda(F,T_{Q_\lambda})$",
     )
-    axes[0].set_title(r"$E_\lambda$")
-    axes[0].set_ylabel("finite-difference error")
-    axes[0].legend(fontsize=8, frameon=False, loc="upper left")
-
-    axes[1].plot(
-        lambdas,
-        mean_for("galerkin", "rho_operator_to_T"),
-        marker="o",
-        color="tab:orange",
-        label=r"$\rho_G(T_{Q_\lambda})$",
-    )
-    axes[1].axhline(0.05, color="0.35", linestyle=":", linewidth=1.1)
-    axes[1].set_title(r"$\rho_G(T_{Q_\lambda})$")
-    axes[1].set_ylabel("prediction-risk excess")
-    axes[1].legend(fontsize=8, frameon=False, loc="upper left")
-
-    for ax in axes:
-        ax.set_xlabel(r"$\lambda$ in $u_\lambda$")
-        ax.set_yscale("log")
-        ax.grid(True, alpha=0.25)
-    fig.suptitle(r"$Q_\lambda=\mathrm{span}(D_yH_L^{\mathrm{ctx}}[u_\lambda])$", y=0.98)
-    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.92))
+    ax.set_title(r"$E_\lambda$ under task-to-isotropic probes")
+    ax.set_xlabel(r"$\lambda$ in $u_\lambda$")
+    ax.set_ylabel("finite-difference error")
+    ax.set_yscale("log")
+    ax.grid(True, alpha=0.25)
+    ax.legend(fontsize=8, frameon=False, loc="upper left")
+    fig.tight_layout()
     fig.savefig(path, dpi=180)
     plt.close(fig)
 

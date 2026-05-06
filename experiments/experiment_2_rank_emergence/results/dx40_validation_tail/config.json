@@ -1,0 +1,30 @@
+{
+  "args": {
+    "basis_kinds": "response,raw,combined",
+    "candidate_rank": null,
+    "checkpoint": "/Users/fernandoruizmazo/Documents/GitHub/mech-ICL-KRR/checkpoints/final/dx40_tau16_s122.pt",
+    "curve_r_max": null,
+    "d_model": 128,
+    "d_x": 40,
+    "device": "cpu",
+    "episodes": 7,
+    "eps": 0.001,
+    "excess_risk_frac": 0.05,
+    "kernel_family": "linear",
+    "kernel_jitter": 1e-05,
+    "kernel_lengthscale": 3.0,
+    "kernel_signal_var": 1.0,
+    "n_build": 16,
+    "n_ctx": 0,
+    "n_eval": 16,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 8,
+    "name": "dx40_tau16_s122_validation_tail",
+    "rank_tau": 0.01,
+    "results_dir": "experiments/experiment_2_rank_emergence/results/dx40_validation_tail",
+    "seed": 122,
+    "sigma2": 0.1,
+    "tau_sv": 0.001
+  }
+}
