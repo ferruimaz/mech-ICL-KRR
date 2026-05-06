@@ -1,0 +1,33 @@
+dx40 label-space Q projection
+
+sampling=train_distribution, seed=122, bank_size=480, bank_batch_size=16
+n_build=16, eps=0.001, alpha=0.05, basis_layer=8
+log10(lambda1)=[-2.0, 2.0]
+
+Bank distribution from base rows:
+  n=480
+  MSE/KRR mean=1.638, median=1.2364, q25-q75=0.99962-1.7875, q90=2.7998, q99=5.6863, max=30.959
+  r_T mean=7.4375, median=8
+  rank_Q mean=10.021, median=8
+  rho mean=0.051781, median=8.8253e-25, certified=395/480
+
+input       n  MSE/KRR mean  MSE/KRR med KRR input med  drift med
+y         480         1.638       1.2364             1          0
+y_Q       480        1.3118        1.104             1   0.071341
+y_perp    480        434.98       40.281        40.968    0.99796
+
+scale        n  reach     rT      k       rho      base       y_Q    y_perp
+[-2,-1)    112  1.000   6.42   6.42   0.01670      1.07      1.06       2.9
+[-1,0)     176  1.000   7.99   7.99   0.00044      1.16      1.03      39.9
+[0,1)       96  0.906   8.00  10.28   0.01725      1.53      1.15       156
+[1,2]       96  0.208   7.04  17.68   0.22137      2.13      1.59       828
+
+Outliers with base MSE/KRR >= 5: 7
+ bank   rT    k       rho       base        y_Q     y_perp
+    6    2    2   0.04136      30.96      5.209  1.693e+04
+   15    3    3   0.03443      8.991      1.478       17.8
+  244    8   30   0.16410      6.608       7.11       5659
+  188    8   13   0.34808      6.575      7.226       7285
+  415    8   10   0.49542       5.78      4.189      13.03
+  129    8    8   0.03469      5.661      2.261      879.3
+  159    8   12   0.05788      5.155      2.602       1033

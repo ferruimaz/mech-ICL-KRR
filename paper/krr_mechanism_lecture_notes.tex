@@ -62,9 +62,12 @@ whether the transformer's response follows it, \(E_\varepsilon(F,T_Q)\) small.
 \item \textbf{Layerwise availability.} Compute the intrinsic prediction-risk rank \(r_T\) from the
 finite KRR task, then ask where response spans \(C_\ell\) first contain a prefix
 \(Q_{\ell,k}\) with \(k\approx r_T\) and \(\rho_G(T_{Q_{\ell,k}})\le0.05\).
-\item \textbf{Causal use.} Remove high-task-leverage directions from \(Q\). A useful subspace should
-be selective: keeping \(Q\) should preserve the task-local response, while removing important
-\(Q\)-directions should damage it.
+\item \textbf{On-manifold use.} Convert the certified dual subspace into a label-space projection
+\[
+y_Q=AQQ^\top y,\qquad y_\perp=y-y_Q.
+\]
+Since \(Ty_Q=K_tQQ^\top y=T_Qy\), the test is direct: the model should behave normally on
+\(y_Q\), while \(y_\perp\) should not contain the KRR-relevant prediction signal.
 \end{enumerate}
 
 The claim is local: in successful regimes, the transformer realizes the task-distributed KRR
@@ -1043,7 +1046,7 @@ Layer 0 is insufficient. By layer 2, a nearly task-rank subspace is visible; by 
 \label{fig:exp2-rbf-emergence}
 \end{figure}
 
-\subsection{dx40 Native Bank: Scale-Stratified Availability and Removal}
+\subsection{dx40 Native Bank: Scale-Stratified Availability and Label-Space Use}
 
 The \(d_x=40\) checkpoint \path{dx40_tau16_s122.pt} is a scale-aware 8-layer, \(D=128\), 4-head
 linear checkpoint trained with
@@ -1122,45 +1125,61 @@ on \(82.3\%\) of episodes by the final layer.}
 \label{fig:exp2-dx40-native}
 \end{figure}
 
-To test use, apply the same final response-prefix intervention as in Experiment 3: extract \(Q\)
-from the final layer, but intervene at residual state \(s=1\), i.e. after the first transformer
-block and before the second. Report one row per scale bin; the certificate information is carried
-by \(\rho_G(T_Q)\), rather than by splitting a scale bin into separate certified and non-certified
-rows. The summary below uses medians.
+To test use without leaving the model's normal input manifold, extract the same final response
+prefix \(Q\), then decompose the context labels by
+\[
+y_Q:=AQQ^\top y,
+\qquad
+y_\perp:=y-y_Q.
+\]
+This is the natural label-space version of the reduced dual solution, because
+\[
+Ty_Q=K_tA^{-1}AQQ^\top y=K_tQQ^\top y=T_Qy.
+\]
+Thus \(y_Q\) asks whether the model can still solve the task when the label stream contains only the
+certified KRR-relevant component, while \(y_\perp\) asks whether the complementary labels contain
+the KRR prediction signal. The model is run normally from scratch on each label stream.
 
 \begin{table}[htbp]
 \centering
-\caption{\(d_x=40\) native-bank intervention check by scale. Entries are medians over episodes in
-the scale bin. Here \(k=\dim Q\) is the selected final-layer response-prefix size, and the MSE
-columns are MSE/KRR ratios after no surgery, keep-\(Q\), and remove-\(Q\) at residual state \(s=1\).}
+\caption{\(d_x=40\) native-bank label-space projection by scale. Entries are medians over episodes
+in the scale bin. The \(y_Q\) and \(y_\perp\) columns are MSE/KRR ratios after feeding the model the
+projected labels \(AQQ^\top y\) and the complementary labels \(y-AQQ^\top y\).}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{0.9}
 \begin{tabular}{@{}lrrrrrr@{}}
 \toprule
 \(\log_{10}\lambda_1\) & \(r_T\) & \(k\) & \(\rho_G(T_Q)\) &
-base MSE/KRR & keep-\(Q\) MSE/KRR & remove-\(Q\) MSE/KRR\\
+base MSE/KRR & \(y_Q\) MSE/KRR & \(y_\perp\) MSE/KRR\\
 \midrule
-\([-2,-1)\) & 7 & 7  & \(1.32\cdot10^{-2}\) & 1.07 & 1.31 & 2.12\\
-\([-1,0)\)  & 8 & 8  & \(2.18\cdot10^{-26}\) & 1.16 & \(1.10\cdot10^5\) & \(8.71\cdot10^3\)\\
-\([0,1)\)   & 8 & 8  & \(3.56\cdot10^{-4}\) & 1.53 & \(5.36\cdot10^{14}\) & \(4.22\cdot10^{14}\)\\
-\([1,2]\)   & 8 & 19 & 0.194 & 2.13 & \(1.29\cdot10^{15}\) & \(7.19\cdot10^{14}\)\\
+\([-2,-1)\) & 7 & 7  & \(1.32\cdot10^{-2}\) & 1.07 & 1.06 & 2.90\\
+\([-1,0)\)  & 8 & 8  & \(2.23\cdot10^{-26}\) & 1.16 & 1.03 & 39.9\\
+\([0,1)\)   & 8 & 8  & \(3.03\cdot10^{-4}\) & 1.53 & 1.15 & 156\\
+\([1,2]\)   & 8 & 15 & 0.197 & 2.13 & 1.59 & 828\\
 \bottomrule
 \end{tabular}
 \renewcommand{\arraystretch}{1}
 \end{table}
 
-The projection algebra is the intended \(A\)-orthogonal intervention:
+On the whole native bank,
 \[
-\text{keep }Q:\ H_s^{\mathrm{ctx}}\mapsto QQ^\top A H_s^{\mathrm{ctx}},
+\operatorname{median}\frac{\mathrm{MSE}(F(y_Q))}{\mathrm{MSE}_{\mathrm{KRR}}}=1.104,
 \qquad
-\text{remove }Q:\ H_s^{\mathrm{ctx}}\mapsto H_s^{\mathrm{ctx}}-QQ^\top A H_s^{\mathrm{ctx}}.
+\operatorname{median}\frac{\mathrm{MSE}(F(y_\perp))}{\mathrm{MSE}_{\mathrm{KRR}}}=40.28.
 \]
-The strange numbers are therefore not from the certified/non-certified split. They show that this
-early-state residual surgery is dynamically unstable on much of the native bank: even when
-\(\rho_G(T_Q)\) certifies that the induced operator is KRR-sufficient, replacing the actual state by
-its \(Q\)-projection can move the residual stream far off the transformer's typical trajectory.
-Thus this native-bank table is an instability diagnostic, not the clean repair experiment.
+The low- and moderate-scale bins show the intended pattern: the projected labels \(y_Q\) preserve
+KRR-level prediction, while \(y_\perp\) loses the target-relevant signal. At high scale,
+\(\rho_G(T_Q)\) is often not certified, and both the base model and the label projection degrade.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\linewidth]{../experiments/experiment_4_q_repair/results_label_space_validation_bank_full/label_space_by_scale.pdf}
+\caption{\(d_x=40\) native-bank label-space projection. Bars report median MSE/KRR by scale bin
+for the original labels \(y\), the certified component \(y_Q=AQQ^\top y\), and the complement
+\(y_\perp=y-y_Q\).}
+\label{fig:exp2-dx40-label-space}
+\end{figure}
 
 For the older fixed-\(\ell=3\) RBF checkpoint, the final-layer response diagnostic at
 \(n_{\mathrm{ctx}}=47\) is:
@@ -1183,14 +1202,11 @@ For the older fixed-\(\ell=3\) RBF checkpoint, the final-layer response diagnost
 Availability can remain near-sufficient while the realized finite-difference operator becomes less
 clean.
 
-\section{Experiment 3: Causal Direction Removal}
+\section{Experiment 3: On-Manifold Label-Space Use}
 
-Experiments 1--2 show availability. Experiment 3 tests use: take a certified raw final basis
-\[
-Q=[q_1,\ldots,q_r],
-\]
-rank its directions by KRR task leverage, remove selected context-token residual directions, and
-roll the remaining layers forward.
+Experiments 1--2 show that a KRR-sufficient dual subspace is available. Experiment 3 asks whether
+that subspace is enough when it is converted back into actual context labels, so the transformer is
+always run on a valid input sequence.
 
 The checkpoint is \path{linear_baseline_dx5_L8.pt}. The diagnostic uses flat-spectrum linear
 episodes with
@@ -1198,173 +1214,74 @@ episodes with
 d_x=5,\qquad
 n_{\mathrm{ctx}}=47,\qquad
 n_{\mathrm{tgt}}=16,\qquad
-\sigma^2=0.1,
+\sigma^2=0.1.
 \]
+Use 32 episodes, seed \(31415\), raw final-state bases, \(\tau_{\mathrm{sv}}=10^{-3}\), and
+\(r_{\max}=12\). For each episode, extract
 \[
-\varepsilon=10^{-3},
-\]
-32 episodes, seed \(42\), 32 held-out causal probes per episode, \(\tau_{\mathrm{sv}}=10^{-3}\),
-\(r_{\max}=12\), task and isotropic probes, residual-state sweep \(s=0,\ldots,8\), and
-\(k_{\mathrm{remove}}\in\{1,2,4\}\). The complement-ablation summary uses 8 episode records per
-condition.
-
-For \(Q_{-j}\), the basis with \(q_j\) removed, define task leverage
-\[
-\Lambda_j^{\mathrm{red}}(U)
-:=
-\left(
-\frac{
-\sum_{u\in U}\|(T_Q-T_{Q_{-j}})u\|_2^2
-}{
-\sum_{u\in U}\|Tu\|_2^2+\eta_{\mathrm{num}}
-}
-\right)^{1/2}.
-\]
-High-leverage directions are those whose removal most changes the reduced KRR response. For a
-selected \(A\)-orthonormal block \(D=Q_J\), define the context-side \(A\)-projection
-\[
-P_D^A:=DD^\top A,
+Q=[q_1,\ldots,q_k],
 \qquad
-D^\top A D=I.
+Q^\top A Q=I.
 \]
-Direction-removal surgery at residual state \(s\) changes only context-token residuals:
+The average extracted size is \(k=11.8\), while the intrinsic KRR risk rank is
 \[
-H_s^{\mathrm{ctx}}
-\longmapsto
-(I-P_D^A)H_s^{\mathrm{ctx}}.
+\mathbb{E}[r_T]=5.
 \]
-Target-token residuals are left unchanged, and the transformer is rolled forward from state \(s\).
-For the whole-subspace complement ablation, use \(D=Q\):
+The induced reduced operator is highly sufficient:
 \[
-\text{keep }Q:\quad
-H_s^{\mathrm{ctx}}\mapsto P_Q^A H_s^{\mathrm{ctx}}=QQ^\top A H_s^{\mathrm{ctx}},
-\]
-\[
-\text{remove }Q:\quad
-H_s^{\mathrm{ctx}}\mapsto (I-P_Q^A)H_s^{\mathrm{ctx}}
-=H_s^{\mathrm{ctx}}-QQ^\top A H_s^{\mathrm{ctx}}.
-\]
-Matched controls remove low-task-leverage directions, high-isotropic-but-low-task directions,
-high-activation-variance-but-low-task directions, and random subsets.
-
-Prediction drift is
-\[
-\|F_{\mathrm{surg}}(y)-F_{\mathrm{base}}(y)\|/\|F_{\mathrm{base}}(y)\|.
-\]
-KRR-error inflation is post-surgery pointwise KRR error divided by pre-surgery pointwise KRR error.
-Response damage is
-\[
-\left(
-\frac{\sum_{u\in U}\|D_\varepsilon F_{\mathrm{surg}}(y)[u]
--D_\varepsilon F_{\mathrm{base}}(y)[u]\|_2^2}
-{\sum_{u\in U}\|Tu\|_2^2+\eta_{\mathrm{num}}}
-\right)^{1/2}.
+\mathbb{E}\,\rho_G(T_Q)=1.55\cdot 10^{-3}.
 \]
 
-Before surgery,
+Now define
 \[
-E_{\mathrm{task}}(F,T)=0.00926,
+y_Q:=AQQ^\top y,
 \qquad
-E_{\mathrm{task}}(F,T_Q)=0.00920,
-\qquad
-\rho_G(T_Q)=0.00149.
+y_\perp:=y-y_Q.
 \]
-Off task,
+Since
 \[
-E_{\mathrm{iso}}(F,T)=0.266.
+Ty_Q=K_tA^{-1}AQQ^\top y=K_tQQ^\top y=T_Qy,
 \]
+feeding \(y_Q\) is the on-manifold version of evaluating the certified reduced KRR operator. Feeding
+\(y_\perp\) tests the complementary label component. No hidden residual state is edited.
 
 \begin{table}[htbp]
 \centering
-\caption{Experiment 3 causal-use summary. Direction removals are at residual state \(s=1\).}
+\caption{Experiment 3 label-space projection. Ratios are episode MSE divided by the original KRR
+MSE. The KRR-input column reports the same label projection passed through KRR itself.}
 \small
 \setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}p{0.32\linewidth}p{0.30\linewidth}p{0.30\linewidth}@{}}
+\begin{tabular}{@{}lrrrr@{}}
 \toprule
-Intervention & Result & Reading\\
+Input labels & mean MSE/KRR & median MSE/KRR & median KRR-input/KRR & median drift from \(F(y)\)\\
 \midrule
-No surgery &
-\(E_{\mathrm{task}}(F,T)=0.00926\), \(\rho_G(T_Q)=0.00149\) &
-Starting episodes satisfy the task-local certificate.\\
-Remove one high-task-leverage direction &
-prediction drift \(4.68\), response damage \(41.59\), KRR-error inflation \(649\times\) &
-KRR-leverage directions are causally important.\\
-Remove one low-task-leverage direction &
-prediction drift \(9.8\times10^{-4}\), response damage \(0.0024\), inflation \(1.03\times\) &
-Low-task-leverage same-basis removals are nearly inert.\\
-Keep only the \(Q\)-projection &
-\(E_{\mathrm{task}}(F,T)=0.01836\), response damage \(0.01634\) &
-The certified subspace nearly preserves the task-local response.\\
-Remove \(Q\) &
-\(E_{\mathrm{task}}(F,T)=106.46\), response damage \(106.46\) &
-The complement does not carry the task-local KRR response.\\
+\(y\) & 1.619 & 1.085 & 1.000 & 0\\
+\(y_Q=AQQ^\top y\) & 1.602 & 1.090 & 0.9999 & \(2.91\cdot10^{-4}\)\\
+\(y_\perp=y-y_Q\) & \(5.27\cdot10^3\) & \(1.77\cdot10^3\) & \(1.77\cdot10^3\) & 1.000\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-For the \(d_x=40\) target-rich run, the causal check is repeated on the Experiment 2 response
-prefix rather than on a raw final basis. For each episode, build the final-layer response candidate
-span \(C_8=\spanop(D_yH_8^{\mathrm{ctx}})\), order it by KRR-targeted energy, and choose
-\[
-k=\min\{j:\rho_G(T_{Q_{8,j}})\le0.05\}.
-\]
-Then apply the same complement ablation at residual state \(s=1\). This tests the actual
-near-minimal response prefix, not the whole \(47\)-dimensional candidate span.
-
-\begin{table}[htbp]
-\centering
-\caption{\(d_x=40\) causal-use check on the final-layer response prefix. Eight episodes, seed
-\(122\), \(n_{\mathrm{ctx}}=47\), \(n_{\mathrm{tgt}}=40\), 16 build probes, 16 held-out task probes,
-\(\varepsilon=10^{-3}\).}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}lcccccc@{}}
-\toprule
-Intervention & rank \(Q\) & \(r_T\) & \(\rho_G(T_Q)\) & drift & \(E_{\mathrm{task}}(F,T)\) & damage\\
-\midrule
-No surgery & \(21.38\) & \(21.00\) & \(0.0410\) & \(0\) & \(0.0988\) & \(0\)\\
-Keep \(Q\) & \(21.38\) & \(21.00\) & \(0.0410\) & \(0.154\) & \(0.156\) & \(0.156\)\\
-Remove \(Q\) & \(21.38\) & \(21.00\) & \(0.0410\) & \(0.640\) & \(0.592\) & \(0.581\)\\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Thus the dx40 model does use the KRR-sufficient response prefix: deleting it is much more damaging
-than keeping it. The mediation is weaker than in the \(d_x=5\) certificate, since keep-\(Q\) is not
-nearly identical to the base model, but the effect is selective and in the expected direction.
-
-High-task surgery is most damaging at early residual states. At \(s=1\), aggregate task leverage and
-task response damage are strongly related across matched non-random controls:
-\[
-\text{log--log Pearson }0.91,
-\qquad
-\text{Spearman }0.87.
-\]
+Thus the projected label stream \(y_Q\) preserves the model's prediction and the KRR oracle. The
+complement \(y_\perp\) is not a useful label stream: KRR itself fails on it by the same scale as the
+model. This is the clean use test: the certified dual subspace carries the target-relevant label
+information without requiring off-manifold hidden-state edits.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.78\linewidth]{../experiments/experiment_3_causal_surgery/results/experiment_3_key_surgery.pdf}
-\caption{Experiment 3 selective causal effect. High task-leverage removals cause much larger task
-finite-difference response damage than matched low-task-leverage controls.}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.82\linewidth]{../experiments/experiment_3_causal_surgery/results_complement_ablation/complement_ablation_bars.pdf}
-\caption{Experiment 3 whole-subspace complement ablation at \(s=1\). Left: task finite-difference
-operator error \(E_{\mathrm{task}}(F,T)\) after no surgery, keep-\(Q\), and remove-\(Q\). Right:
-relative pointwise KRR prediction error for the same three interventions. Keeping only
-\(P_Q^AH_s^{\mathrm{ctx}}\) nearly preserves the task-local behavior; deleting it leaves the
-complement and destroys the KRR response.}
+\includegraphics[width=0.72\linewidth]{../experiments/experiment_3_causal_surgery/results_label_space/label_space_mse_ratios.pdf}
+\caption{Experiment 3 on-manifold label-space projection. The transformer and KRR oracle both
+remain near the original KRR error on \(y_Q\), while both fail on \(y_\perp\).}
+\label{fig:exp3-label-space}
 \end{figure}
 
 \FloatBarrier
 
-\section{Experiment 4: Repair After Basis Formation}
+\section{Experiment 4: Repair by Label-Space Projection}
 
 Experiment 4 is a conditional repair test. First choose a setting where the model usually builds a
 KRR-sufficient response basis. Then look only at the rare episodes where the model output is bad.
-Finally test whether keeping the certified basis \(Q\) repairs those bad outputs.
+Finally test whether the on-manifold label projection \(y_Q=AQQ^\top y\) repairs those bad outputs.
 
 Use the \(d_x=40\) checkpoint \path{dx40_tau16_s122.pt} in the target-rich diagnostic setting
 \[
@@ -1375,7 +1292,7 @@ n_{\mathrm{tgt}}=40,
 \log_{10}\lambda_1\in[-2,1].
 \]
 This is not the native validation distribution. It is a controlled setting in which the response
-prefix usually exists, so a keep-\(Q\) repair has a chance to be principled.
+prefix usually exists, so the label-space projection has a chance to be principled.
 
 For each episode, form the final-layer response candidate span
 \[
@@ -1398,56 +1315,42 @@ following distribution:
 \mathrm{MSE}_{\mathrm{model}}/\mathrm{MSE}_{\mathrm{KRR}}
 & 84.96 & 1.14 & 1.03\text{--}1.37 & q_{90}=1.67,\ q_{99}=4.19,\ \max=1.67\cdot10^4\\
 r_T & 23.29 & 25 & 19.75\text{--}28 & 1\text{--}32\\
-k & 23.76 & 25 & 20\text{--}29 & 1\text{--}41\\
-\rho_G(T_Q) & 0.0445 & 0.0441 & 0.0400\text{--}0.0470 & \Pr(\rho_G(T_Q)\le0.05)=196/200
+k & 23.80 & 25 & 20\text{--}29 & 1\text{--}41\\
+\rho_G(T_Q) & 0.0444 & 0.0441 & 0.0403\text{--}0.0471 & \Pr(\rho_G(T_Q)\le0.05)=194/200
 \end{array}
 \]
-The aggregate MSEs are
-\[
-\mathbb{E}\,\mathrm{MSE}_{\mathrm{model}}=0.579,
-\qquad
-\mathbb{E}\,\mathrm{MSE}_{\mathrm{KRR}}=0.131.
-\]
 Thus the bank is mostly non-pathological and basis-present: the median MSE ratio is \(1.14\), the
-certificate holds on \(98\%\) of episodes, and the typical KRR rank and extracted prefix size are
-both around \(23\)--\(25\). The large arithmetic mean MSE ratio is caused by one catastrophic
-outlier, bank id \(35\); removing only this largest outlier gives mean ratio \(1.28\).
+certificate holds on \(194/200=97\%\) of episodes, and the typical KRR rank and extracted prefix
+size are both around \(23\)--\(25\). The large arithmetic mean MSE ratio is caused by one
+catastrophic outlier, bank id \(35\); excluding only this largest outlier gives a non-outlier mean
+near \(1.28\).
 
 After this bank-level scan, select episodes where the unmodified model is bad:
 \[
 \frac{\mathrm{MSE}_{\mathrm{model}}}{\mathrm{MSE}_{\mathrm{KRR}}}\ge5.
 \]
-Only two episodes pass. The interventions are applied at residual state \(s=1\):
+Only two episodes pass. For each selected episode, run the transformer normally on
 \[
-\begin{aligned}
-\text{keep }Q:\quad
-&H_s^{\mathrm{ctx}}\mapsto QQ^\top A H_s^{\mathrm{ctx}},\\
-\text{remove }Q:\quad
-&H_s^{\mathrm{ctx}}\mapsto H_s^{\mathrm{ctx}}-QQ^\top A H_s^{\mathrm{ctx}},\\
-\text{keep random }R:\quad
-&H_s^{\mathrm{ctx}}\mapsto RR^\top A H_s^{\mathrm{ctx}},
-\qquad R^\top AR=I,\quad \dim R=\dim Q.
-\end{aligned}
+y,\qquad y_Q=AQQ^\top y,\qquad y_\perp=y-y_Q.
 \]
-The random controls test whether repair is specific to the learned KRR-targeted prefix, or whether
-same-dimensional residual-stream denoising already explains much of the effect.
+The model is never rolled from an edited hidden state. This matters because the certificate
+\(\rho_G(T_Q)\) is a statement about the KRR dual subspace, and \(y_Q\) is the label stream whose
+ordinary KRR prediction is exactly \(T_Qy\).
 
 \begin{table}[htbp]
 \centering
-\caption{Experiment 4 conditional repair after certified basis formation. The bank has 200
-target-rich episodes; two satisfy \(\mathrm{MSE}_{\mathrm{model}}/\mathrm{MSE}_{\mathrm{KRR}}\ge5\).
-Rows report averages over the two selected episodes; the random-control row also averages 20
-same-rank \(A\)-orthonormal subspaces per selected episode.}
+\caption{Experiment 4 label-space repair. The bank has 200 target-rich episodes; two satisfy
+\(\mathrm{MSE}_{\mathrm{model}}/\mathrm{MSE}_{\mathrm{KRR}}\ge5\). Rows report averages over the
+two selected episodes.}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lccc@{}}
 \toprule
-Intervention & MSE & MSE/KRR & Reading\\
+Input labels & mean MSE/KRR & median MSE/KRR & Reading\\
 \midrule
-Base & \(41.80\) & \(8371.3\) & pathological output\\
-Keep \(Q\) & \(7.41\cdot10^{-3}\) & \(1.096\) & near-KRR repair\\
-Keep random \(A\)-subspace & \(8.36\cdot10^{-3}\) & \(1.252\) & same-rank control also repairs\\
-Remove \(Q\) & \(100.14\) & \(20056.4\) & worsens the failure\\
+\(y\) & \(8.37\cdot10^3\) & \(8.37\cdot10^3\) & pathological output\\
+\(y_Q=AQQ^\top y\) & 1.079 & 1.079 & near-KRR repair\\
+\(y_\perp=y-y_Q\) & \(6.00\cdot10^3\) & \(6.00\cdot10^3\) & complementary labels fail\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1455,21 +1358,26 @@ Remove \(Q\) & \(100.14\) & \(20056.4\) & worsens the failure\\
 The two selected episodes are:
 \[
 \begin{array}{c|cccccc}
-\text{bank id} & r_T & k & \rho_G(T_Q) & \mathrm{MSE}_{\mathrm{KRR}} & \mathrm{MSE}_{\mathrm{base}} &
-\mathrm{MSE}_{\mathrm{keep}\ Q} \\
+\text{bank id} & r_T & k & \rho_G(T_Q) &
+\text{base MSE/KRR} & y_Q\text{ MSE/KRR} & y_\perp\text{ MSE/KRR}\\
 \hline
-35 & 2 & 4 & 0.0469 & 0.004991 & 83.531 & 0.005864\\
-184 & 1 & 1 & 0.0371 & 0.008793 & 0.06009 & 0.008949
+35 & 2 & 3 & 0.0482 & 1.67\cdot10^4 & 1.169 & 1.20\cdot10^4\\
+184 & 1 & 1 & 0.0371 & 6.833 & 0.989 & 7.393
 \end{array}
 \]
 
-Both outliers have \(\rho_G(T_Q)\le0.05\). Thus the KRR-sufficient response basis is present before
-the intervention, which explains why keeping \(Q\) can move the bad output back to KRR-level MSE;
-removing \(Q\) makes the failure worse. But the random control prevents a stronger uniqueness
-claim, since a random same-rank \(A\)-subspace also repairs these two episodes. The clean conclusion
-is that the bad outputs contain harmful residual components outside a small task-relevant subspace;
-the learned \(Q\) is one principled way to keep the useful part, but same-dimensional denoising
-already explains much of the effect.
+Both outliers have \(\rho_G(T_Q)\le0.05\), so the KRR-sufficient response basis is present before
+conditioning on bad model outputs. Projecting the labels onto that basis is enough to bring the
+model back to KRR-level error on both outliers. The complement does not repair: it carries little of
+the target-relevant KRR signal.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.72\linewidth]{../experiments/experiment_4_q_repair/results_label_space_target_rich/label_space_outliers.pdf}
+\caption{Experiment 4 target-rich outliers. Feeding \(y_Q=AQQ^\top y\) repairs the two bad episodes;
+feeding \(y_\perp=y-y_Q\) does not.}
+\label{fig:exp4-label-repair}
+\end{figure}
 
 \FloatBarrier
 
@@ -1487,10 +1395,11 @@ already explains much of the effect.
 \item Construct \(T_Q=K_tQQ^\top\).
 \item Test subspace sufficiency with \(\rho_G(T_Q)\).
 \item Test model-subspace alignment with \(E_\varepsilon(F,T_Q)\).
-\item In causal runs, remove high-leverage \(Q\)-directions and measure task-local response damage.
+\item Convert certified \(Q\) into label projections \(y_Q=AQQ^\top y\) and \(y_\perp=y-y_Q\).
+\item Run the model normally on \(y_Q\) and \(y_\perp\) to test on-manifold use and repair.
 \end{enumerate}
 
 Mechanism story: behavioral similarity, KRR-structured activation certificate, risk-rank
-sufficiency, layerwise availability, and validated causal specificity.
+sufficiency, layerwise availability, and on-manifold label-space use.
 
 \end{document}

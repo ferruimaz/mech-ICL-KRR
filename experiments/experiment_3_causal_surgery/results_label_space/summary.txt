@@ -1,0 +1,13 @@
+Experiment 3 label-space Q projection
+
+episodes=32, seed=31415, n_ctx=47, n_tgt=16
+checkpoint=final/linear_baseline_dx5_L8.pt, eps not used, tau_sv=0.001, rmax=12
+
+mean rank_Q=11.8
+mean r_T=5
+mean rho_TQ=0.0015536
+
+input       n  MSE/KRR mean  MSE/KRR med KRR input med  drift med
+y          32        1.6185       1.0848             1          0
+y_Q        32        1.6015       1.0903       0.99985 0.00029112
+y_perp     32        5267.8       1768.5        1772.5     1.0002

@@ -1,0 +1,19 @@
+{
+  "args": {
+    "checkpoint": "final/linear_baseline_dx5_L8.pt",
+    "d_model": 128,
+    "d_x": 5,
+    "episodes": 32,
+    "excess_risk_frac": 0.05,
+    "n_ctx": 47,
+    "n_heads": 4,
+    "n_layers": 8,
+    "n_tgt": 16,
+    "results_dir": "experiments/experiment_3_causal_surgery/results_label_space",
+    "rmax": 12,
+    "seed": 31415,
+    "sigma2": 0.1,
+    "tau_sv": 0.001
+  },
+  "device": "cpu"
+}
